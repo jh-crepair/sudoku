@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Sudoku App Icon Foreground - Cute puzzle grid with numbers -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+    <!-- Outer rounded card background -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M24,20 Q20,20 20,24 L20,84 Q20,88 24,88 L84,88 Q88,88 88,84 L88,24 Q88,20 84,20 Z" />
+
+    <!-- 3x3 Sudoku grid lines - inner frame -->
+    <!-- Horizontal thick lines (box separators) -->
+    <path android:strokeColor="#2E7D32" android:strokeWidth="2.5"
+        android:pathData="M24,46 L84,46"/>
+    <path android:strokeColor="#2E7D32" android:strokeWidth="2.5"
+        android:pathData="M24,66 L84,66"/>
+    <!-- Horizontal thin lines -->
+    <path android:strokeColor="#A5D6A7" android:strokeWidth="1"
+        android:pathData="M24,36 L84,36"/>
+    <path android:strokeColor="#A5D6A7" android:strokeWidth="1"
+        android:pathData="M24,56 L84,56"/>
+    <path android:strokeColor="#A5D6A7" android:strokeWidth="1"
+        android:pathData="M24,76 L84,76"/>
+
+    <!-- Vertical thick lines -->
+    <path android:strokeColor="#2E7D32" android:strokeWidth="2.5"
+        android:pathData="M44,20 L44,88"/>
+    <path android:strokeColor="#2E7D32" android:strokeWidth="2.5"
+        android:pathData="M64,20 L64,88"/>
+    <!-- Vertical thin lines -->
+    <path android:strokeColor="#A5D6A7" android:strokeWidth="1"
+        android:pathData="M34,20 L34,88"/>
+    <path android:strokeColor="#A5D6A7" android:strokeWidth="1"
+        android:pathData="M54,20 L54,88"/>
+    <path android:strokeColor="#A5D6A7" android:strokeWidth="1"
+        android:pathData="M74,20 L74,88"/>
+
+    <!-- Colored number circles in some cells -->
+    <!-- Row 1 -->
+    <path android:fillColor="#66BB6A" android:pathData="M29,21 m0,7 a5,5 0 1,0 0.01,0 Z"/>
+    <path android:fillColor="#FFA726" android:pathData="M49,21 m0,7 a5,5 0 1,0 0.01,0 Z"/>
+    <path android:fillColor="#EF5350" android:pathData="M79,21 m0,7 a5,5 0 1,0 0.01,0 Z"/>
+    <!-- Row 2 -->
+    <path android:fillColor="#42A5F5" android:pathData="M39,31 m0,7 a5,5 0 1,0 0.01,0 Z"/>
+    <path android:fillColor="#66BB6A" android:pathData="M69,31 m0,7 a5,5 0 1,0 0.01,0 Z"/>
+    <!-- Row 3 -->
+    <path android:fillColor="#FFA726" android:pathData="M29,41 m0,7 a5,5 0 1,0 0.01,0 Z"/>
+    <path android:fillColor="#EF5350" android:pathData="M59,41 m0,7 a5,5 0 1,0 0.01,0 Z"/>
+    <path android:fillColor="#42A5F5" android:pathData="M79,41 m0,7 a5,5 0 1,0 0.01,0 Z"/>
+
+    <!-- Star badge top-right -->
+    <path
+        android:fillColor="#FFD700"
+        android:pathData="M88,16 L89.8,21.5 L95.5,21.5 L91,24.8 L92.8,30.3 L88,27 L83.2,30.3 L85,24.8 L80.5,21.5 L86.2,21.5 Z"/>
+
+</vector>
