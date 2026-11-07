@@ -6,7 +6,10 @@ import androidx.lifecycle.viewModelScope
 import com.kidssudoku.puzzle.data.model.Progress
 import com.kidssudoku.puzzle.data.model.Puzzle
 import com.kidssudoku.puzzle.data.model.PuzzleStatus
+import com.kidssudoku.puzzle.data.preference.GamePreferences
 import com.kidssudoku.puzzle.data.repository.PuzzleRepository
+import com.kidssudoku.puzzle.sound.SoundEffect
+import com.kidssudoku.puzzle.sound.SoundManager
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.*
 import org.json.JSONArray
@@ -23,7 +26,9 @@ data class GameUiState(
 )
 
 class GameViewModel(
-    private val repository: PuzzleRepository
+    private val repository: PuzzleRepository,
+    private val preferences: GamePreferences,
+    private val soundManager: SoundManager
 ) : ViewModel() {
 
     private val _uiState          = MutableStateFlow(GameUiState())
@@ -46,6 +51,8 @@ class GameViewModel(
 
     private val _isCleared        = MutableStateFlow(false)
     val isCleared: StateFlow<Boolean> = _isCleared.asStateFlow()
+
+    val onlyAvailableNumbersAllowed: StateFlow<Boolean> = preferences.onlyAvailableNumbers
 
     private var currentPuzzle : Puzzle?                        = null
     private var timerJob      : Job?                           = null
@@ -98,6 +105,7 @@ class GameViewModel(
             if (savedProgress != null && savedProgress.status != PuzzleStatus.CLEARED.name) {
                 _hintsRemaining.value = (5 - savedProgress.hintUsedCount).coerceIn(0, 5)
                 _elapsedSeconds.value = savedProgress.elapsedSeconds
+
                 // Restore in-progress state
                 if (savedProgress.currentState.isNotEmpty()) {
                     runCatching {
@@ -129,6 +137,8 @@ class GameViewModel(
                 solution   = solution
             )
 
+            // Validate any restored non-fixed cells
+            refreshState()
             startTimer()
         }
     }
@@ -149,6 +159,7 @@ class GameViewModel(
 
     fun togglePause() {
         _isPaused.value = !_isPaused.value
+        soundManager.play(SoundEffect.BUTTON_CLICK)
         if (_isPaused.value) saveProgress()
     }
 
@@ -161,6 +172,7 @@ class GameViewModel(
             _showNumberPicker.value = false
             return
         }
+        soundManager.play(SoundEffect.CELL_SELECT)
         _selectedCell.value     = row to col
         _showNumberPicker.value = true
     }
@@ -183,6 +195,14 @@ class GameViewModel(
         return (1..gridSize).toSet() - usedInRow - usedInCol - usedInBox - setOf(0)
     }
 
+    fun getSelectableNumbers(row: Int, col: Int): Set<Int> {
+        return if (preferences.onlyAvailableNumbers.value) {
+            getAvailableNumbers(row, col)
+        } else {
+            (1..gridSize).toSet()
+        }
+    }
+
     private fun boxDims(size: Int): Pair<Int, Int> = when (size) {
         4 -> 2 to 2; 6 -> 2 to 3; else -> 3 to 3
     }
@@ -190,17 +210,30 @@ class GameViewModel(
     fun inputNumber(row: Int, col: Int, num: Int) {
         val state = _uiState.value
         if (row to col in state.fixedCells) return
+
+        val isCorrect = state.solution.isNotEmpty() && (state.solution.getOrNull(row * gridSize + col) == num)
+        if (!isCorrect) {
+            soundManager.play(SoundEffect.ERROR_INPUT)
+        } else {
+            soundManager.play(SoundEffect.NUMBER_INPUT)
+        }
+
         currentGrid[row][col] = num
         _showNumberPicker.value = false
         _selectedCell.value     = null
         refreshState()
-        if (isSolved()) onPuzzleSolved()
-        else saveProgress()
+        if (isSolved()) {
+            soundManager.play(SoundEffect.PUZZLE_CLEAR)
+            onPuzzleSolved()
+        } else {
+            saveProgress()
+        }
     }
 
     fun deleteNumber(row: Int, col: Int) {
         val state = _uiState.value
         if (row to col in state.fixedCells) return
+        soundManager.play(SoundEffect.BUTTON_CLICK)
         currentGrid[row][col] = 0
         _showNumberPicker.value = false
         _selectedCell.value     = null
@@ -221,6 +254,7 @@ class GameViewModel(
         }
         if (empties.isEmpty()) return
 
+        soundManager.play(SoundEffect.NUMBER_INPUT)
         val (hr, hc)  = empties.random()
         val solutionVal = state.solution[hr * gridSize + hc]
         currentGrid[hr][hc] = solutionVal
@@ -229,8 +263,12 @@ class GameViewModel(
         val newHints = state.hintCells + (hr to hc)
         refreshState(extraHintCells = newHints)
 
-        if (isSolved()) onPuzzleSolved()
-        else saveProgress()
+        if (isSolved()) {
+            soundManager.play(SoundEffect.PUZZLE_CLEAR)
+            onPuzzleSolved()
+        } else {
+            saveProgress()
+        }
     }
 
     // ── Solve check ───────────────────────────────────────────────────────────
@@ -354,10 +392,14 @@ class GameViewModel(
 
     // ── Factory ───────────────────────────────────────────────────────────────
 
-    class Factory(private val repository: PuzzleRepository) : ViewModelProvider.Factory {
+    class Factory(
+        private val repository: PuzzleRepository,
+        private val preferences: GamePreferences,
+        private val soundManager: SoundManager
+    ) : ViewModelProvider.Factory {
         @Suppress("UNCHECKED_CAST")
         override fun <T : ViewModel> create(modelClass: Class<T>): T {
-            return GameViewModel(repository) as T
+            return GameViewModel(repository, preferences, soundManager) as T
         }
     }
 }

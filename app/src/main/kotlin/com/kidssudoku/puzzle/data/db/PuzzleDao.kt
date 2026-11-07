@@ -26,4 +26,7 @@ interface PuzzleDao {
 
     @Query("SELECT * FROM puzzles WHERE gridSize = :gridSize AND difficulty = :difficulty AND orderIndex = :orderIndex LIMIT 1")
     suspend fun getPuzzleByOrder(gridSize: Int, difficulty: String, orderIndex: Int): Puzzle?
+
+    @Query("DELETE FROM puzzles")
+    suspend fun deleteAll()
 }

@@ -20,4 +20,7 @@ interface ProgressDao {
 
     @Query("UPDATE progress SET status = 'UNLOCKED' WHERE puzzleId = :puzzleId AND status = 'LOCKED'")
     suspend fun unlockPuzzle(puzzleId: Int)
+
+    @Query("DELETE FROM progress")
+    suspend fun deleteAll()
 }

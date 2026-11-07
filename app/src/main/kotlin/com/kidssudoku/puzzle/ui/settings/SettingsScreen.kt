@@ -1,6 +1,7 @@
 package com.kidssudoku.puzzle.ui.settings
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -9,10 +10,12 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.kidssudoku.puzzle.ui.theme.CreamBackground
 import com.kidssudoku.puzzle.ui.theme.EasyColor
 import com.kidssudoku.puzzle.ui.theme.HardColor
@@ -23,7 +26,9 @@ fun SettingsScreen(
     onBack    : () -> Unit,
     viewModel : SettingsViewModel
 ) {
-    var showDialog    by remember { mutableStateOf(false) }
+    val onlyAvailableNumbers by viewModel.onlyAvailableNumbers.collectAsStateWithLifecycle()
+
+    var showDialog        by remember { mutableStateOf(false) }
     var pendingGridSize   by remember { mutableStateOf(0) }
     var pendingDifficulty by remember { mutableStateOf("") }
 
@@ -51,7 +56,64 @@ fun SettingsScreen(
                 )
             }
 
+            Spacer(modifier = Modifier.height(24.dp))
+
+            // ── Gameplay guide option ───────────────────────────────────────
+            Text(
+                text       = "🎮  게임 가이드 설정",
+                fontSize   = 18.sp,
+                fontWeight = FontWeight.Bold,
+                color      = Color(0xFF37474F)
+            )
+            Spacer(modifier = Modifier.height(10.dp))
+
+            Surface(
+                shape = RoundedCornerShape(14.dp),
+                color = Color.White,
+                tonalElevation = 1.dp
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(14.dp))
+                        .clickable { viewModel.setOnlyAvailableNumbers(!onlyAvailableNumbers) }
+                        .padding(horizontal = 16.dp, vertical = 14.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment     = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text       = "입력 가능한 숫자만 선택 가능",
+                            fontSize   = 16.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color      = Color(0xFF263238)
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text     = if (onlyAvailableNumbers) {
+                                "빈칸 터치 시 규칙상 입력 가능한 숫자만 활성화합니다."
+                            } else {
+                                "빈칸 터치 시 모든 숫자를 자유롭게 입력할 수 있습니다."
+                            },
+                            fontSize = 13.sp,
+                            color    = Color(0xFF78909C)
+                        )
+                    }
+                    Spacer(modifier = Modifier.width(12.dp))
+                    Checkbox(
+                        checked = onlyAvailableNumbers,
+                        onCheckedChange = { viewModel.setOnlyAvailableNumbers(it) },
+                        colors = CheckboxDefaults.colors(
+                            checkedColor = EasyColor,
+                            checkmarkColor = Color.White
+                        )
+                    )
+                }
+            }
+
             Spacer(modifier = Modifier.height(28.dp))
+            HorizontalDivider(color = Color(0xFFE0E0E0), thickness = 1.dp)
+            Spacer(modifier = Modifier.height(20.dp))
 
             // ── Reset section ──────────────────────────────────────────────
             Text(
@@ -97,7 +159,6 @@ fun SettingsScreen(
             Spacer(modifier = Modifier.height(32.dp))
             HorizontalDivider(color = Color(0xFFECEFF1))
             Spacer(modifier = Modifier.height(16.dp))
-
             Text(
                 text     = "어린이 스도쿠  v1.0.0",
                 fontSize = 13.sp,

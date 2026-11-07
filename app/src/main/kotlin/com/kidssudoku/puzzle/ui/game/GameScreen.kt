@@ -38,13 +38,14 @@ fun GameScreen(
 ) {
     LaunchedEffect(puzzleId) { viewModel.loadPuzzle(puzzleId) }
 
-    val uiState         by viewModel.uiState.collectAsStateWithLifecycle()
-    val selectedCell    by viewModel.selectedCell.collectAsStateWithLifecycle()
-    val showNumberPicker by viewModel.showNumberPicker.collectAsStateWithLifecycle()
-    val isPaused        by viewModel.isPaused.collectAsStateWithLifecycle()
-    val elapsedSeconds  by viewModel.elapsedSeconds.collectAsStateWithLifecycle()
-    val hintsRemaining  by viewModel.hintsRemaining.collectAsStateWithLifecycle()
-    val isCleared       by viewModel.isCleared.collectAsStateWithLifecycle()
+    val uiState              by viewModel.uiState.collectAsStateWithLifecycle()
+    val selectedCell         by viewModel.selectedCell.collectAsStateWithLifecycle()
+    val showNumberPicker     by viewModel.showNumberPicker.collectAsStateWithLifecycle()
+    val isPaused             by viewModel.isPaused.collectAsStateWithLifecycle()
+    val elapsedSeconds       by viewModel.elapsedSeconds.collectAsStateWithLifecycle()
+    val hintsRemaining       by viewModel.hintsRemaining.collectAsStateWithLifecycle()
+    val isCleared            by viewModel.isCleared.collectAsStateWithLifecycle()
+    val onlyAvailableNumbers by viewModel.onlyAvailableNumbersAllowed.collectAsStateWithLifecycle()
 
     LaunchedEffect(isCleared) {
         if (isCleared) {
@@ -112,7 +113,8 @@ fun GameScreen(
             selectedCell?.let { (selRow, selCol) ->
                 NumberPickerOverlay(
                     gridSize         = uiState.gridSize,
-                    availableNumbers = viewModel.getAvailableNumbers(selRow, selCol),
+                    availableNumbers = viewModel.getSelectableNumbers(selRow, selCol),
+                    isGuided         = onlyAvailableNumbers,
                     onNumberSelected = { num -> viewModel.inputNumber(selRow, selCol, num) },
                     onDelete         = { viewModel.deleteNumber(selRow, selCol) },
                     onDismiss        = { viewModel.dismissNumberPicker() }
@@ -288,7 +290,7 @@ fun SudokuGrid(
                     val cellWidth = size.width / gridSize
                     val cellHeight = size.height / gridSize
 
-                    // 2. 내부 셀 경계선 및 2x2(또는 박스) 외부 경계선 그리기
+                    // 2. 내부 셀 경계선 및 박스 경계선 그리기
                     // 수직선
                     for (col in 1 until gridSize) {
                         val isBoxBorder = (col % boxCols == 0)
@@ -317,7 +319,7 @@ fun SudokuGrid(
                         )
                     }
 
-                    // 3. 전체 외곽 테두리 (가장 바깥 경계)
+                    // 3. 전체 외곽 테두리
                     val outerW = 3.5.dp.toPx()
                     val halfOuter = outerW / 2f
                     drawRoundRect(
@@ -343,9 +345,10 @@ fun SudokuGrid(
                     val isLinked   = !isSelected && (sameRow || sameCol || sameBox)
 
                     val cellBg = when {
+                        isError && isSelected -> ErrorColor.copy(alpha = 0.35f)
                         isSelected -> SelectedHighlight
                         isHint     -> HintCellBg
-                        isError    -> ErrorColor.copy(alpha = 0.18f)
+                        isError    -> ErrorColor.copy(alpha = 0.20f)
                         isFixed    -> FixedCellBg
                         isLinked   -> LinkedHighlight
                         else       -> Color.Transparent
@@ -356,6 +359,10 @@ fun SudokuGrid(
                             .offset(x = cellDp * col, y = cellDp * row)
                             .size(cellDp)
                             .background(cellBg)
+                            .then(
+                                if (isError) Modifier.border(2.dp, ErrorColor, RoundedCornerShape(4.dp))
+                                else Modifier
+                            )
                             .clickable { onCellClick(row, col) },
                         contentAlignment = Alignment.Center
                     ) {
@@ -368,7 +375,7 @@ fun SudokuGrid(
                                     6    -> 26.sp
                                     else -> 20.sp
                                 },
-                                fontWeight = if (isFixed) FontWeight.ExtraBold else FontWeight.Bold,
+                                fontWeight = if (isFixed || isError) FontWeight.ExtraBold else FontWeight.Bold,
                                 color = when {
                                     isError -> ErrorColor
                                     isFixed -> FixedCellColor
@@ -376,6 +383,17 @@ fun SudokuGrid(
                                     else    -> UserInputColor
                                 },
                                 textAlign = TextAlign.Center
+                            )
+                        }
+
+                        // 오답인 경우 시각적으로 확실한 빨간색 점(경고 인디케이터)
+                        if (isError && value != 0) {
+                            Box(
+                                modifier = Modifier
+                                    .align(Alignment.TopEnd)
+                                    .padding(3.dp)
+                                    .size(6.dp)
+                                    .background(ErrorColor, CircleShape)
                             )
                         }
                     }
@@ -391,6 +409,7 @@ fun SudokuGrid(
 fun NumberPickerOverlay(
     gridSize         : Int,
     availableNumbers : Set<Int>,
+    isGuided         : Boolean,
     onNumberSelected : (Int) -> Unit,
     onDelete         : () -> Unit,
     onDismiss        : () -> Unit
@@ -414,10 +433,10 @@ fun NumberPickerOverlay(
                 verticalArrangement   = Arrangement.spacedBy(10.dp)
             ) {
                 Text(
-                    text       = "숫자를 선택하세요",
+                    text       = if (isGuided) "입력 가능한 숫자를 선택하세요" else "숫자를 선택하세요",
                     fontSize   = 16.sp,
-                    color      = Color(0xFF78909C),
-                    fontWeight = FontWeight.Medium
+                    color      = if (isGuided) Color(0xFF388E3C) else Color(0xFF78909C),
+                    fontWeight = FontWeight.SemiBold
                 )
 
                 val perRow = if (gridSize <= 4) 4 else if (gridSize == 6) 3 else 5
@@ -425,11 +444,12 @@ fun NumberPickerOverlay(
                 chunks.forEach { row ->
                     Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                         row.forEach { num ->
-                            val available = num in availableNumbers
+                            val isAvailable = num in availableNumbers
                             NumberButton(
                                 number    = num,
-                                available = available,
-                                onClick   = { if (available) onNumberSelected(num) }
+                                available = isAvailable,
+                                isGuided  = isGuided,
+                                onClick   = { if (isAvailable) onNumberSelected(num) }
                             )
                         }
                     }
@@ -455,20 +475,36 @@ fun NumberPickerOverlay(
 private fun NumberButton(
     number    : Int,
     available : Boolean,
+    isGuided  : Boolean,
     onClick   : () -> Unit
 ) {
+    val bgColor = when {
+        !isGuided -> Color(0xFFE3F2FD) // 자유 입력 모드: 산뜻한 파란색 활성화
+        available -> Color(0xFF4CAF50).copy(alpha = 0.12f) // 가이드 모드 활성화: 초록색
+        else      -> Color(0xFFF5F5F5) // 가이드 모드 비활성화: 연회색
+    }
+
+    val borderColor = when {
+        !isGuided -> Color(0xFF64B5F6)
+        available -> EasyColor
+        else      -> Color(0xFFE0E0E0)
+    }
+
+    val textColor = when {
+        !isGuided -> Color(0xFF1565C0)
+        available -> Color(0xFF2E7D32)
+        else      -> Color(0xFFBDBDBD)
+    }
+
     Box(
         modifier = Modifier
             .size(60.dp)
             .clip(CircleShape)
-            .background(
-                if (available) Color(0xFF4CAF50).copy(alpha = 0.12f)
-                else           Color(0xFFF5F5F5)
-            )
+            .background(bgColor)
             .border(
-                width  = if (available) 2.dp else 1.dp,
-                color  = if (available) EasyColor else Color(0xFFE0E0E0),
-                shape  = CircleShape
+                width = if (available) 2.dp else 1.dp,
+                color = borderColor,
+                shape = CircleShape
             )
             .clickable(enabled = available, onClick = onClick),
         contentAlignment = Alignment.Center
@@ -477,7 +513,7 @@ private fun NumberButton(
             text       = "$number",
             fontSize   = 26.sp,
             fontWeight = FontWeight.Bold,
-            color      = if (available) Color(0xFF2E7D32) else Color(0xFFBDBDBD)
+            color      = textColor
         )
     }
 }

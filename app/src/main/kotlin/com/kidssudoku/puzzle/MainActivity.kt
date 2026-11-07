@@ -107,7 +107,7 @@ fun SudokuApp(
             entry<GameRoute> { route ->
                 val vm: GameViewModel = viewModel(
                     key = "game_${route.puzzleId}",
-                    factory = GameViewModel.Factory(app.repository)
+                    factory = GameViewModel.Factory(app.repository, app.gamePreferences, app.soundManager)
                 )
                 GameScreen(
                     puzzleId = route.puzzleId,
@@ -163,7 +163,7 @@ fun SudokuApp(
             // ── Settings ─────────────────────────────────────────────────
             entry<SettingsRoute> {
                 val vm: SettingsViewModel = viewModel(
-                    factory = SettingsViewModel.Factory(app.repository)
+                    factory = SettingsViewModel.Factory(app.repository, app.gamePreferences)
                 )
                 SettingsScreen(
                     onBack    = { backStack.removeLastOrNull() },

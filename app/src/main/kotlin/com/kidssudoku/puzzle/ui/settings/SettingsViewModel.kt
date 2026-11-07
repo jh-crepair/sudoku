@@ -5,13 +5,22 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.kidssudoku.puzzle.data.model.Progress
 import com.kidssudoku.puzzle.data.model.PuzzleStatus
+import com.kidssudoku.puzzle.data.preference.GamePreferences
 import com.kidssudoku.puzzle.data.repository.PuzzleRepository
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
 class SettingsViewModel(
-    private val repository: PuzzleRepository
+    private val repository: PuzzleRepository,
+    private val preferences: GamePreferences
 ) : ViewModel() {
+
+    val onlyAvailableNumbers: StateFlow<Boolean> = preferences.onlyAvailableNumbers
+
+    fun setOnlyAvailableNumbers(enabled: Boolean) {
+        preferences.setOnlyAvailableNumbers(enabled)
+    }
 
     fun resetProgress(gridSize: Int, difficulty: String) {
         viewModelScope.launch {
@@ -28,10 +37,13 @@ class SettingsViewModel(
         }
     }
 
-    class Factory(private val repository: PuzzleRepository) : ViewModelProvider.Factory {
+    class Factory(
+        private val repository: PuzzleRepository,
+        private val preferences: GamePreferences
+    ) : ViewModelProvider.Factory {
         @Suppress("UNCHECKED_CAST")
         override fun <T : ViewModel> create(modelClass: Class<T>): T {
-            return SettingsViewModel(repository) as T
+            return SettingsViewModel(repository, preferences) as T
         }
     }
 }
