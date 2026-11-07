@@ -149,10 +149,19 @@ private fun PuzzleCell(
             contentAlignment  = Alignment.Center
         ) {
             if (isLocked) {
-                Text(
-                    text     = "🔒",
-                    fontSize = 22.sp
-                )
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text(
+                        text     = "🔒",
+                        fontSize = 18.sp
+                    )
+                    Spacer(modifier = Modifier.height(2.dp))
+                    Text(
+                        text       = "$orderIndex",
+                        fontSize   = 13.sp,
+                        fontWeight = FontWeight.Medium,
+                        color      = Color(0xFF9E9E9E)
+                    )
+                }
             } else {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     Text(

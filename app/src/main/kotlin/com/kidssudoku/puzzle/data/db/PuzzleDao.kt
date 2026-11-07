@@ -6,7 +6,7 @@ import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface PuzzleDao {
-    @Query("SELECT * FROM puzzles WHERE gridSize = :gridSize AND difficulty = :difficulty ORDER BY orderIndex")
+    @Query("SELECT * FROM puzzles WHERE gridSize = :gridSize AND difficulty = :difficulty GROUP BY orderIndex ORDER BY orderIndex ASC")
     fun getPuzzlesByTypeAndDifficulty(gridSize: Int, difficulty: String): Flow<List<Puzzle>>
 
     @Query("SELECT * FROM puzzles WHERE id = :id")
@@ -17,6 +17,9 @@ interface PuzzleDao {
 
     @Query("SELECT COUNT(*) FROM puzzles")
     suspend fun count(): Int
+
+    @Query("DELETE FROM puzzles WHERE id NOT IN (SELECT MIN(id) FROM puzzles GROUP BY gridSize, difficulty, orderIndex)")
+    suspend fun removeDuplicates()
 
     @Query("SELECT id FROM puzzles WHERE gridSize = :gridSize AND difficulty = :difficulty ORDER BY orderIndex ASC LIMIT 1")
     suspend fun getFirstPuzzleId(gridSize: Int, difficulty: String): Int?
