@@ -42,7 +42,7 @@ fun PuzzleListScreen(
         "EASY" -> EasyColor; "MEDIUM" -> MediumColor; else -> HardColor
     }
     val diffLabel = when (difficulty) {
-        "EASY" -> "초급"; "MEDIUM" -> "중급"; else -> "고급"
+        "EASY" -> "초급"; "MEDIUM" -> "중급"; else -> "상급"
     }
     val gridLabel = when (gridSize) { 4 -> "4단"; 6 -> "6단"; else -> "9단" }
     val cleared   = progressMap.values.count { it.status == PuzzleStatus.CLEARED.name }
@@ -71,7 +71,7 @@ fun PuzzleListScreen(
                         color = diffColor
                     )
                     Text(
-                        text = "$cleared / 20 완료",
+                        text = "$cleared / ${puzzles.size} 완료",
                         fontSize = 13.sp,
                         color = Color(0xFF78909C)
                     )

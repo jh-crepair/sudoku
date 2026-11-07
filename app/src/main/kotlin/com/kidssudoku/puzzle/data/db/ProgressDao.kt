@@ -18,6 +18,9 @@ interface ProgressDao {
     @Query("DELETE FROM progress WHERE puzzleId IN (SELECT id FROM puzzles WHERE gridSize = :gridSize AND difficulty = :difficulty)")
     suspend fun deleteProgressByTypeAndDifficulty(gridSize: Int, difficulty: String)
 
+    @Query("DELETE FROM progress WHERE puzzleId IN (SELECT id FROM puzzles WHERE gridSize = :gridSize)")
+    suspend fun deleteProgressByGridSize(gridSize: Int)
+
     @Query("UPDATE progress SET status = 'UNLOCKED' WHERE puzzleId = :puzzleId AND status = 'LOCKED'")
     suspend fun unlockPuzzle(puzzleId: Int)
 

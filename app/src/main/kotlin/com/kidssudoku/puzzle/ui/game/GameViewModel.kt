@@ -52,6 +52,14 @@ class GameViewModel(
     private val _isCleared        = MutableStateFlow(false)
     val isCleared: StateFlow<Boolean> = _isCleared.asStateFlow()
 
+    // 원인이 되는 다른 셀들의 좌표 목록 (물결 효과 대상)
+    private val _conflictingSourceCells = MutableStateFlow<Set<Pair<Int, Int>>>(emptySet())
+    val conflictingSourceCells: StateFlow<Set<Pair<Int, Int>>> = _conflictingSourceCells.asStateFlow()
+
+    // 물결 효과 애니메이션 트리거 키
+    private val _conflictTrigger = MutableStateFlow(0L)
+    val conflictTrigger: StateFlow<Long> = _conflictTrigger.asStateFlow()
+
     val onlyAvailableNumbersAllowed: StateFlow<Boolean> = preferences.onlyAvailableNumbers
 
     private var currentPuzzle : Puzzle?                        = null
@@ -65,13 +73,15 @@ class GameViewModel(
     fun loadPuzzle(id: Int) {
         timerJob?.cancel()
         this.puzzleId = id
-        _isCleared.value        = false
-        _isPaused.value         = false
-        _selectedCell.value     = null
-        _showNumberPicker.value = false
-        _elapsedSeconds.value   = 0
-        _hintsRemaining.value   = 5
-        _uiState.value          = GameUiState()
+        _isCleared.value                = false
+        _isPaused.value                 = false
+        _selectedCell.value             = null
+        _showNumberPicker.value         = false
+        _elapsedSeconds.value           = 0
+        _hintsRemaining.value           = 5
+        _conflictingSourceCells.value   = emptySet()
+        _conflictTrigger.value          = 0L
+        _uiState.value                  = GameUiState()
 
         viewModelScope.launch {
             val puzzle = repository.getPuzzleById(id) ?: return@launch
@@ -125,7 +135,7 @@ class GameViewModel(
             }
 
             val diffLabel  = when (puzzle.difficulty) {
-                "EASY" -> "초급"; "MEDIUM" -> "중급"; else -> "고급"
+                "EASY" -> "초급"; "MEDIUM" -> "중급"; else -> "상급"
             }
             val gridLabel  = when (gridSize) { 4 -> "4단"; 6 -> "6단"; else -> "9단" }
 
@@ -137,7 +147,7 @@ class GameViewModel(
                 solution   = solution
             )
 
-            // Validate any restored non-fixed cells based on visible conflicts
+            // Validate visible conflicts
             refreshState()
             startTimer()
         }
@@ -172,6 +182,10 @@ class GameViewModel(
             _showNumberPicker.value = false
             return
         }
+
+        // 셀을 클릭할 때에는 물결 효과를 출력하지 않음 (숫자 선택 팝업에서 선택 시에만 출력)
+        _conflictingSourceCells.value = emptySet()
+
         soundManager.play(SoundEffect.CELL_SELECT)
         _selectedCell.value     = row to col
         _showNumberPicker.value = true
@@ -208,44 +222,59 @@ class GameViewModel(
     }
 
     /**
-     * Checks if placing [num] at ([row], [col]) causes a conflict with
-     * other currently visible cells in the same row, col, or box.
+     * Finds all currently visible cells that conflict with placing [num] at ([row], [col]).
+     * Searches same row, column, and box.
      */
-    private fun hasConflict(row: Int, col: Int, num: Int): Boolean {
-        if (num == 0) return false
+    fun findConflictingCells(row: Int, col: Int, num: Int): Set<Pair<Int, Int>> {
+        if (num == 0) return emptySet()
+        val sources = mutableSetOf<Pair<Int, Int>>()
 
-        // 1. Same row check
+        // 1. Same row
         for (c in 0 until gridSize) {
-            if (c != col && currentGrid[row][c] == num) return true
+            if (c != col && currentGrid[row][c] == num) {
+                sources.add(row to c)
+            }
         }
 
-        // 2. Same column check
+        // 2. Same column
         for (r in 0 until gridSize) {
-            if (r != row && currentGrid[r][col] == num) return true
+            if (r != row && currentGrid[r][col] == num) {
+                sources.add(r to col)
+            }
         }
 
-        // 3. Same box check
+        // 3. Same box
         val (br, bc) = boxDims(gridSize)
         val sr = (row / br) * br
         val sc = (col / bc) * bc
         for (r in sr until sr + br) {
             for (c in sc until sc + bc) {
-                if ((r != row || c != col) && currentGrid[r][c] == num) return true
+                if ((r != row || c != col) && currentGrid[r][c] == num) {
+                    sources.add(r to c)
+                }
             }
         }
-        return false
+        return sources
+    }
+
+    private fun hasConflict(row: Int, col: Int, num: Int): Boolean {
+        return findConflictingCells(row, col, num).isNotEmpty()
     }
 
     fun inputNumber(row: Int, col: Int, num: Int) {
         val state = _uiState.value
         if (row to col in state.fixedCells) return
 
-        // Check conflict with currently visible numbers on board
-        val hasConflict = hasConflict(row, col, num)
-        if (hasConflict) {
+        // Check conflicts with currently visible numbers on board
+        val conflicts = findConflictingCells(row, col, num)
+        if (conflicts.isNotEmpty()) {
             soundManager.play(SoundEffect.ERROR_INPUT)
+            // Trigger ripple wave effect on the source conflicting cells!
+            _conflictingSourceCells.value = conflicts
+            _conflictTrigger.value = System.currentTimeMillis()
         } else {
             soundManager.play(SoundEffect.NUMBER_INPUT)
+            _conflictingSourceCells.value = emptySet()
         }
 
         currentGrid[row][col] = num
@@ -265,6 +294,7 @@ class GameViewModel(
         if (row to col in state.fixedCells) return
         soundManager.play(SoundEffect.BUTTON_CLICK)
         currentGrid[row][col] = 0
+        _conflictingSourceCells.value = emptySet()
         _showNumberPicker.value = false
         _selectedCell.value     = null
         refreshState()
@@ -289,6 +319,7 @@ class GameViewModel(
         val solutionVal = state.solution[hr * gridSize + hc]
         currentGrid[hr][hc] = solutionVal
         _hintsRemaining.value--
+        _conflictingSourceCells.value = emptySet()
 
         val newHints = state.hintCells + (hr to hc)
         refreshState(extraHintCells = newHints)
@@ -341,6 +372,7 @@ class GameViewModel(
     private fun onPuzzleSolved() {
         timerJob?.cancel()
         _isCleared.value = true
+        _conflictingSourceCells.value = emptySet()
         viewModelScope.launch {
             val stars   = calculateStars()
             val puzzle  = currentPuzzle ?: return@launch

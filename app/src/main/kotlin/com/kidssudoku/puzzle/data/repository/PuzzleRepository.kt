@@ -31,6 +31,10 @@ class PuzzleRepository(
         progressDao.deleteProgressByTypeAndDifficulty(gridSize, difficulty)
     }
 
+    suspend fun resetProgressByGridSize(gridSize: Int) {
+        progressDao.deleteProgressByGridSize(gridSize)
+    }
+
     suspend fun resetPuzzlePlayState(puzzleId: Int) {
         val current = progressDao.getProgressByPuzzleId(puzzleId).first()
         if (current != null) {

@@ -1,6 +1,7 @@
 package com.kidssudoku.puzzle.ui.game
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.*
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
@@ -17,6 +18,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
@@ -38,14 +40,16 @@ fun GameScreen(
 ) {
     LaunchedEffect(puzzleId) { viewModel.loadPuzzle(puzzleId) }
 
-    val uiState              by viewModel.uiState.collectAsStateWithLifecycle()
-    val selectedCell         by viewModel.selectedCell.collectAsStateWithLifecycle()
-    val showNumberPicker     by viewModel.showNumberPicker.collectAsStateWithLifecycle()
-    val isPaused             by viewModel.isPaused.collectAsStateWithLifecycle()
-    val elapsedSeconds       by viewModel.elapsedSeconds.collectAsStateWithLifecycle()
-    val hintsRemaining       by viewModel.hintsRemaining.collectAsStateWithLifecycle()
-    val isCleared            by viewModel.isCleared.collectAsStateWithLifecycle()
-    val onlyAvailableNumbers by viewModel.onlyAvailableNumbersAllowed.collectAsStateWithLifecycle()
+    val uiState                by viewModel.uiState.collectAsStateWithLifecycle()
+    val selectedCell           by viewModel.selectedCell.collectAsStateWithLifecycle()
+    val showNumberPicker       by viewModel.showNumberPicker.collectAsStateWithLifecycle()
+    val isPaused               by viewModel.isPaused.collectAsStateWithLifecycle()
+    val elapsedSeconds         by viewModel.elapsedSeconds.collectAsStateWithLifecycle()
+    val hintsRemaining         by viewModel.hintsRemaining.collectAsStateWithLifecycle()
+    val isCleared              by viewModel.isCleared.collectAsStateWithLifecycle()
+    val onlyAvailableNumbers   by viewModel.onlyAvailableNumbersAllowed.collectAsStateWithLifecycle()
+    val conflictingSourceCells by viewModel.conflictingSourceCells.collectAsStateWithLifecycle()
+    val conflictTrigger        by viewModel.conflictTrigger.collectAsStateWithLifecycle()
 
     LaunchedEffect(isCleared) {
         if (isCleared) {
@@ -84,13 +88,15 @@ fun GameScreen(
             // ── Grid ─────────────────────────────────────────────────────────
             if (uiState.grid.isNotEmpty()) {
                 SudokuGrid(
-                    grid         = uiState.grid,
-                    gridSize     = uiState.gridSize,
-                    fixedCells   = uiState.fixedCells,
-                    errorCells   = uiState.errorCells,
-                    hintCells    = uiState.hintCells,
-                    selectedCell = selectedCell,
-                    onCellClick  = { r, c -> viewModel.onCellClick(r, c) }
+                    grid                   = uiState.grid,
+                    gridSize               = uiState.gridSize,
+                    fixedCells             = uiState.fixedCells,
+                    errorCells             = uiState.errorCells,
+                    hintCells              = uiState.hintCells,
+                    conflictingSourceCells = conflictingSourceCells,
+                    conflictTrigger        = conflictTrigger,
+                    selectedCell           = selectedCell,
+                    onCellClick            = { r, c -> viewModel.onCellClick(r, c) }
                 )
             } else {
                 Box(
@@ -252,13 +258,15 @@ private fun GameHud(
 
 @Composable
 fun SudokuGrid(
-    grid         : List<List<Int>>,
-    gridSize     : Int,
-    fixedCells   : Set<Pair<Int, Int>>,
-    errorCells   : Set<Pair<Int, Int>>,
-    hintCells    : Set<Pair<Int, Int>>,
-    selectedCell : Pair<Int, Int>?,
-    onCellClick  : (Int, Int) -> Unit
+    grid                   : List<List<Int>>,
+    gridSize               : Int,
+    fixedCells             : Set<Pair<Int, Int>>,
+    errorCells             : Set<Pair<Int, Int>>,
+    hintCells              : Set<Pair<Int, Int>>,
+    conflictingSourceCells : Set<Pair<Int, Int>>,
+    conflictTrigger        : Long,
+    selectedCell           : Pair<Int, Int>?,
+    onCellClick            : (Int, Int) -> Unit
 ) {
     val (boxRows, boxCols) = when (gridSize) {
         4    -> 2 to 2
@@ -333,25 +341,26 @@ fun SudokuGrid(
         ) {
             for (row in 0 until gridSize) {
                 for (col in 0 until gridSize) {
-                    val isFixed    = row to col in fixedCells
-                    val isError    = row to col in errorCells
-                    val isHint     = row to col in hintCells
-                    val isSelected = selectedCell == row to col
-                    val sameRow    = selectedCell?.first == row
-                    val sameCol    = selectedCell?.second == col
-                    val sameBox    = selectedCell?.let { (sr, sc) ->
+                    val isFixed          = row to col in fixedCells
+                    val isError          = row to col in errorCells
+                    val isHint           = row to col in hintCells
+                    val isConflictSource = row to col in conflictingSourceCells
+                    val isSelected       = selectedCell == row to col
+                    val sameRow          = selectedCell?.first == row
+                    val sameCol          = selectedCell?.second == col
+                    val sameBox          = selectedCell?.let { (sr, sc) ->
                         (row / boxRows == sr / boxRows) && (col / boxCols == sc / boxCols)
                     } == true
-                    val isLinked   = !isSelected && (sameRow || sameCol || sameBox)
+                    val isLinked         = !isSelected && (sameRow || sameCol || sameBox)
 
                     val cellBg = when {
                         isError && isSelected -> ErrorColor.copy(alpha = 0.35f)
-                        isSelected -> SelectedHighlight
-                        isHint     -> HintCellBg
-                        isError    -> ErrorColor.copy(alpha = 0.20f)
-                        isFixed    -> FixedCellBg
-                        isLinked   -> LinkedHighlight
-                        else       -> Color.Transparent
+                        isSelected            -> SelectedHighlight
+                        isHint                -> HintCellBg
+                        isError               -> ErrorColor.copy(alpha = 0.20f)
+                        isFixed               -> FixedCellBg
+                        isLinked              -> LinkedHighlight
+                        else                  -> Color.Transparent
                     }
 
                     Box(
@@ -366,27 +375,45 @@ fun SudokuGrid(
                             .clickable { onCellClick(row, col) },
                         contentAlignment = Alignment.Center
                     ) {
+                        // ── 원인 셀 포커스 물결 효과 (Expanding Ripple Wave Animation) ──
+                        if (isConflictSource) {
+                            ConflictWaveEffect(trigger = conflictTrigger)
+                        }
+
                         val value = grid[row][col]
                         if (value != 0) {
+                            // 원인 셀일 경우 살짝 튀어오르는 바운스 애니메이션
+                            val textScale = if (isConflictSource && conflictTrigger > 0L) {
+                                val bounce = remember(conflictTrigger) { Animatable(1f) }
+                                LaunchedEffect(conflictTrigger) {
+                                    bounce.snapTo(1f)
+                                    bounce.animateTo(1.35f, tween(150, easing = FastOutLinearInEasing))
+                                    bounce.animateTo(1.0f, spring(dampingRatio = Spring.DampingRatioMediumBouncy))
+                                }
+                                bounce.value
+                            } else 1f
+
                             Text(
                                 text = "$value",
+                                modifier = Modifier.scale(textScale),
                                 fontSize = when (gridSize) {
                                     4    -> 34.sp
                                     6    -> 26.sp
                                     else -> 20.sp
                                 },
-                                fontWeight = if (isFixed || isError) FontWeight.ExtraBold else FontWeight.Bold,
+                                fontWeight = if (isFixed || isError || isConflictSource) FontWeight.ExtraBold else FontWeight.Bold,
                                 color = when {
-                                    isError -> ErrorColor
-                                    isFixed -> FixedCellColor
-                                    isHint  -> HintNumberColor
-                                    else    -> UserInputColor
+                                    isConflictSource -> Color(0xFFD84315) // 원인 셀은 진한 주황/적색으로 강조
+                                    isError          -> ErrorColor
+                                    isFixed          -> FixedCellColor
+                                    isHint           -> HintNumberColor
+                                    else             -> UserInputColor
                                 },
                                 textAlign = TextAlign.Center
                             )
                         }
 
-                        // 오답인 경우 시각적으로 확실한 빨간색 점(경고 인디케이터)
+                        // 오답 입력 셀: 상단 빨간 점 인디케이터
                         if (isError && value != 0) {
                             Box(
                                 modifier = Modifier
@@ -399,6 +426,77 @@ fun SudokuGrid(
                     }
                 }
             }
+        }
+    }
+}
+
+// ── Conflict Wave (Ripple) Effect Component ──────────────────────────────────
+
+@Composable
+private fun ConflictWaveEffect(
+    trigger: Long,
+    modifier: Modifier = Modifier
+) {
+    var lastTrigger by remember { mutableStateOf(0L) }
+    val animProgress = remember { Animatable(1f) }
+
+    LaunchedEffect(trigger) {
+        if (trigger > 0L && trigger != lastTrigger) {
+            lastTrigger = trigger
+            animProgress.snapTo(0f)
+            animProgress.animateTo(
+                targetValue = 1f,
+                animationSpec = tween(durationMillis = 1100, easing = FastOutSlowInEasing)
+            )
+        }
+    }
+
+    val progress = animProgress.value
+    if (progress < 1f) {
+        // 첫 번째 확장 물결 링 (Expanding Wave Ring 1)
+        val wave1Scale = 1f + progress * 0.85f
+        val wave1Alpha = (1f - progress).coerceIn(0f, 1f) * 0.9f
+
+        // 두 번째 확장 물결 링 (약간 지연되어 따라오는 Expanding Wave Ring 2)
+        val p2 = ((progress - 0.20f) / 0.80f).coerceIn(0f, 1f)
+        val wave2Scale = 1f + p2 * 0.70f
+        val wave2Alpha = if (progress > 0.20f) (1f - p2) * 0.7f else 0f
+
+        // 셀 배경 펄스 글로우
+        val bgPulse = if (progress < 0.35f) (progress / 0.35f) else (1f - progress) / 0.65f
+        val bgAlpha = bgPulse * 0.35f
+
+        // 배경 하이라이트 글로우
+        Box(
+            modifier = modifier
+                .fillMaxSize()
+                .background(Color(0xFFFF7043).copy(alpha = bgAlpha), RoundedCornerShape(8.dp))
+        )
+
+        // Wave Ring 1 (바깥으로 퍼져나가는 첫 번째 물결 테두리)
+        Box(
+            modifier = modifier
+                .fillMaxSize()
+                .scale(wave1Scale)
+                .border(
+                    width = 3.dp,
+                    color = Color(0xFFFF3D00).copy(alpha = wave1Alpha),
+                    shape = RoundedCornerShape(10.dp)
+                )
+        )
+
+        // Wave Ring 2 (뒤따라 퍼져나가는 두 번째 물결 테두리)
+        if (progress > 0.20f) {
+            Box(
+                modifier = modifier
+                    .fillMaxSize()
+                    .scale(wave2Scale)
+                    .border(
+                        width = 2.dp,
+                        color = Color(0xFFFF9800).copy(alpha = wave2Alpha),
+                        shape = RoundedCornerShape(10.dp)
+                    )
+            )
         }
     }
 }

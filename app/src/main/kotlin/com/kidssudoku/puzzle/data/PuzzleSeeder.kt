@@ -21,7 +21,7 @@ class PuzzleSeeder(
     private val mutex = Mutex()
 
     companion object {
-        private const val CURRENT_SEEDER_VERSION = 2
+        private const val CURRENT_SEEDER_VERSION = 3
     }
 
     suspend fun seedIfNeeded() = withContext(Dispatchers.IO) {
@@ -41,27 +41,30 @@ class PuzzleSeeder(
             val generator = SudokuGenerator()
             val puzzleList = mutableListOf<Puzzle>()
 
-            // (gridSize, difficulty, startRevealCount, endRevealCount)
-            // As orderIndex goes from 1 to 20, reveal count smoothly decreases to increase difficulty
+            // (gridSize, difficulty, count, startRevealCount, endRevealCount)
+            // 4단: 초급 10개, 중급 20개, 상급 30개
+            // 6단: 초급 20개, 중급 30개, 상급 40개
+            // 9단: 초급 20개, 중급 30개, 상급 50개
             val configs = listOf(
-                DifficultyConfig(4, "EASY",   startReveal = 11, endReveal = 9),
-                DifficultyConfig(4, "MEDIUM", startReveal = 8,  endReveal = 6),
-                DifficultyConfig(4, "HARD",   startReveal = 6,  endReveal = 4),
-                DifficultyConfig(6, "EASY",   startReveal = 22, endReveal = 18),
-                DifficultyConfig(6, "MEDIUM", startReveal = 17, endReveal = 13),
-                DifficultyConfig(6, "HARD",   startReveal = 13, endReveal = 10),
-                DifficultyConfig(9, "EASY",   startReveal = 44, endReveal = 36),
-                DifficultyConfig(9, "MEDIUM", startReveal = 34, endReveal = 28),
-                DifficultyConfig(9, "HARD",   startReveal = 26, endReveal = 21)
+                DifficultyConfig(4, "EASY",   count = 10, startReveal = 11, endReveal = 9),
+                DifficultyConfig(4, "MEDIUM", count = 20, startReveal = 8,  endReveal = 6),
+                DifficultyConfig(4, "HARD",   count = 30, startReveal = 6,  endReveal = 4),
+                DifficultyConfig(6, "EASY",   count = 20, startReveal = 22, endReveal = 18),
+                DifficultyConfig(6, "MEDIUM", count = 30, startReveal = 17, endReveal = 13),
+                DifficultyConfig(6, "HARD",   count = 40, startReveal = 13, endReveal = 10),
+                DifficultyConfig(9, "EASY",   count = 20, startReveal = 44, endReveal = 36),
+                DifficultyConfig(9, "MEDIUM", count = 30, startReveal = 34, endReveal = 28),
+                DifficultyConfig(9, "HARD",   count = 50, startReveal = 26, endReveal = 21)
             )
 
             var seed = 12345L
             for (config in configs) {
-                for (orderIndex in 1..20) {
+                for (orderIndex in 1..config.count) {
                     val revealCount = calculateRevealCount(
                         startReveal = config.startReveal,
                         endReveal   = config.endReveal,
-                        orderIndex  = orderIndex
+                        orderIndex  = orderIndex,
+                        totalCount  = config.count
                     )
                     val puzzle = generator.generate(
                         gridSize    = config.gridSize,
@@ -80,8 +83,9 @@ class PuzzleSeeder(
         }
     }
 
-    private fun calculateRevealCount(startReveal: Int, endReveal: Int, orderIndex: Int): Int {
-        val progress = (orderIndex - 1).toFloat() / 19f
+    private fun calculateRevealCount(startReveal: Int, endReveal: Int, orderIndex: Int, totalCount: Int): Int {
+        if (totalCount <= 1) return startReveal
+        val progress = (orderIndex - 1).toFloat() / (totalCount - 1).toFloat()
         return (startReveal - progress * (startReveal - endReveal)).roundToInt()
     }
 
@@ -107,6 +111,7 @@ class PuzzleSeeder(
     private data class DifficultyConfig(
         val gridSize: Int,
         val difficulty: String,
+        val count: Int,
         val startReveal: Int,
         val endReveal: Int
     )

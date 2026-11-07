@@ -1,33 +1,32 @@
 package com.kidssudoku.puzzle.ui.main
 
 import com.kidssudoku.puzzle.data.SudokuGenerator
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNotNull
 import org.junit.Test
 import kotlin.random.Random
 
 class MainScreenViewModelTest {
     @Test
-    fun testPuzzleOrder() {
+    fun testSudokuGeneration() {
         val generator = SudokuGenerator()
-        val configs = listOf(
-            Triple(4, "EASY",   10),
-            Triple(4, "MEDIUM",  7),
-            Triple(4, "HARD",    5),
-            Triple(6, "EASY",   20),
-            Triple(6, "MEDIUM", 15),
-            Triple(6, "HARD",   11),
-            Triple(9, "EASY",   40),
-            Triple(9, "MEDIUM", 31),
-            Triple(9, "HARD",   22)
-        )
 
-        var seed = 12345L
-        for ((gridSize, difficulty, revealCount) in configs) {
-            val list = mutableListOf<Int>()
-            for (orderIndex in 1..20) {
-                val puzzle = generator.generate(gridSize, difficulty, orderIndex, revealCount, Random(seed++))
-                list.add(puzzle.orderIndex)
-            }
-            println("Config ($gridSize, $difficulty): $list")
-        }
+        // 4x4 generation test
+        val puzzle4 = generator.generate(4, "EASY", 1, 10, Random(42))
+        assertEquals(4, puzzle4.gridSize)
+        assertEquals(1, puzzle4.orderIndex)
+        assertNotNull(puzzle4.solution)
+
+        // 6x6 generation test
+        val puzzle6 = generator.generate(6, "MEDIUM", 1, 15, Random(42))
+        assertEquals(6, puzzle6.gridSize)
+        assertEquals(1, puzzle6.orderIndex)
+        assertNotNull(puzzle6.solution)
+
+        // 9x9 generation test
+        val puzzle9 = generator.generate(9, "HARD", 1, 26, Random(42))
+        assertEquals(9, puzzle9.gridSize)
+        assertEquals(1, puzzle9.orderIndex)
+        assertNotNull(puzzle9.solution)
     }
 }

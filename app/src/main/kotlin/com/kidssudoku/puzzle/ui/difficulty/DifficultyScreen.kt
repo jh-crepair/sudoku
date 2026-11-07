@@ -1,5 +1,6 @@
 package com.kidssudoku.puzzle.ui.difficulty
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -8,6 +9,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -45,7 +47,7 @@ fun DifficultyScreen(
                 )
             }
 
-            Spacer(modifier = Modifier.height(40.dp))
+            Spacer(modifier = Modifier.height(36.dp))
 
             DifficultyCard(
                 emoji       = "😊",
@@ -65,7 +67,7 @@ fun DifficultyScreen(
             Spacer(modifier = Modifier.height(18.dp))
             DifficultyCard(
                 emoji       = "😤",
-                label       = "고급",
+                label       = "상급",
                 description = "도전! 최고 난이도!",
                 color       = HardColor,
                 onClick     = { onDifficultySelected("HARD") }
@@ -82,42 +84,56 @@ private fun DifficultyCard(
     color: Color,
     onClick: () -> Unit
 ) {
-    Card(
+    Surface(
         modifier = Modifier
             .fillMaxWidth()
-            .height(100.dp)
+            .height(104.dp)
+            .clip(RoundedCornerShape(22.dp))
             .clickable(onClick = onClick),
         shape = RoundedCornerShape(22.dp),
-        colors = CardDefaults.cardColors(containerColor = color.copy(alpha = 0.13f)),
-        elevation = CardDefaults.cardElevation(defaultElevation = 3.dp)
+        color = Color.White,
+        border = BorderStroke(2.dp, color.copy(alpha = 0.35f)),
+        shadowElevation = 3.dp,
+        tonalElevation = 2.dp
     ) {
-        Row(
+        Box(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(horizontal = 24.dp),
-            verticalAlignment = Alignment.CenterVertically
+                .background(color.copy(alpha = 0.08f))
         ) {
-            Text(text = emoji, fontSize = 44.sp)
-            Spacer(modifier = Modifier.width(20.dp))
-            Column(modifier = Modifier.weight(1f)) {
+            Row(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(horizontal = 22.dp, vertical = 12.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(text = emoji, fontSize = 42.sp)
+                Spacer(modifier = Modifier.width(18.dp))
+                Column(
+                    modifier = Modifier.weight(1f),
+                    verticalArrangement = Arrangement.Center
+                ) {
+                    Text(
+                        text = label,
+                        fontSize = 26.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = color
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = description,
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Medium,
+                        color = Color(0xFF607D8B)
+                    )
+                }
                 Text(
-                    text = label,
-                    fontSize = 30.sp,
+                    text = "→",
+                    fontSize = 28.sp,
                     fontWeight = FontWeight.Bold,
-                    color = color
-                )
-                Text(
-                    text = description,
-                    fontSize = 14.sp,
-                    color = Color(0xFF78909C)
+                    color = color.copy(alpha = 0.7f)
                 )
             }
-            Text(
-                text = "→",
-                fontSize = 28.sp,
-                fontWeight = FontWeight.Bold,
-                color = color.copy(alpha = 0.5f)
-            )
         }
     }
 }

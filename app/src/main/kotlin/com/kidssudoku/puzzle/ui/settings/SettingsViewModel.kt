@@ -37,6 +37,26 @@ class SettingsViewModel(
         }
     }
 
+    fun resetGridSizeProgress(gridSize: Int) {
+        viewModelScope.launch {
+            repository.resetProgressByGridSize(gridSize)
+            // Re-unlock the first puzzle for each difficulty in this gridSize
+            val diffs = listOf("EASY", "MEDIUM", "HARD")
+            for (diff in diffs) {
+                val puzzles = repository.getPuzzles(gridSize, diff).first()
+                val firstPuzzle = puzzles.minByOrNull { it.orderIndex }
+                if (firstPuzzle != null) {
+                    repository.saveProgress(
+                        Progress(
+                            puzzleId = firstPuzzle.id,
+                            status   = PuzzleStatus.UNLOCKED.name
+                        )
+                    )
+                }
+            }
+        }
+    }
+
     class Factory(
         private val repository: PuzzleRepository,
         private val preferences: GamePreferences
