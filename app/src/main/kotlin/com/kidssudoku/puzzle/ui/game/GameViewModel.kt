@@ -137,7 +137,7 @@ class GameViewModel(
                 solution   = solution
             )
 
-            // Validate any restored non-fixed cells
+            // Validate any restored non-fixed cells based on visible conflicts
             refreshState()
             startTimer()
         }
@@ -207,12 +207,42 @@ class GameViewModel(
         4 -> 2 to 2; 6 -> 2 to 3; else -> 3 to 3
     }
 
+    /**
+     * Checks if placing [num] at ([row], [col]) causes a conflict with
+     * other currently visible cells in the same row, col, or box.
+     */
+    private fun hasConflict(row: Int, col: Int, num: Int): Boolean {
+        if (num == 0) return false
+
+        // 1. Same row check
+        for (c in 0 until gridSize) {
+            if (c != col && currentGrid[row][c] == num) return true
+        }
+
+        // 2. Same column check
+        for (r in 0 until gridSize) {
+            if (r != row && currentGrid[r][col] == num) return true
+        }
+
+        // 3. Same box check
+        val (br, bc) = boxDims(gridSize)
+        val sr = (row / br) * br
+        val sc = (col / bc) * bc
+        for (r in sr until sr + br) {
+            for (c in sc until sc + bc) {
+                if ((r != row || c != col) && currentGrid[r][c] == num) return true
+            }
+        }
+        return false
+    }
+
     fun inputNumber(row: Int, col: Int, num: Int) {
         val state = _uiState.value
         if (row to col in state.fixedCells) return
 
-        val isCorrect = state.solution.isNotEmpty() && (state.solution.getOrNull(row * gridSize + col) == num)
-        if (!isCorrect) {
+        // Check conflict with currently visible numbers on board
+        val hasConflict = hasConflict(row, col, num)
+        if (hasConflict) {
             soundManager.play(SoundEffect.ERROR_INPUT)
         } else {
             soundManager.play(SoundEffect.NUMBER_INPUT)
@@ -271,8 +301,13 @@ class GameViewModel(
         }
     }
 
-    // ── Solve check ───────────────────────────────────────────────────────────
+    // ── Solve check & Conflict detection ───────────────────────────────────────
 
+    /**
+     * Determines error cells strictly based on visible conflicts on the board.
+     * Any non-fixed cell whose current number collides with another cell in its
+     * row, col, or box is marked as an error.
+     */
     private fun refreshState(extraHintCells: Set<Pair<Int,Int>>? = null) {
         val state = _uiState.value
         val errors = mutableSetOf<Pair<Int, Int>>()
@@ -280,7 +315,7 @@ class GameViewModel(
             for (c in 0 until gridSize) {
                 val v = currentGrid[r][c]
                 if (v == 0 || r to c in state.fixedCells) continue
-                if (state.solution.isNotEmpty() && state.solution[r * gridSize + c] != v) {
+                if (hasConflict(r, c, v)) {
                     errors.add(r to c)
                 }
             }

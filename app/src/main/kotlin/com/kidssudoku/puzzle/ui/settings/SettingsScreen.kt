@@ -58,7 +58,7 @@ fun SettingsScreen(
 
             Spacer(modifier = Modifier.height(24.dp))
 
-            // ── Gameplay guide option ───────────────────────────────────────
+            // ── Gameplay guide option (Toggle Switch) ─────────────────────────
             Text(
                 text       = "🎮  게임 가이드 설정",
                 fontSize   = 18.sp,
@@ -68,44 +68,48 @@ fun SettingsScreen(
             Spacer(modifier = Modifier.height(10.dp))
 
             Surface(
-                shape = RoundedCornerShape(14.dp),
+                shape = RoundedCornerShape(16.dp),
                 color = Color.White,
-                tonalElevation = 1.dp
+                tonalElevation = 2.dp,
+                shadowElevation = 1.dp
             ) {
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .clip(RoundedCornerShape(14.dp))
+                        .clip(RoundedCornerShape(16.dp))
                         .clickable { viewModel.setOnlyAvailableNumbers(!onlyAvailableNumbers) }
-                        .padding(horizontal = 16.dp, vertical = 14.dp),
+                        .padding(horizontal = 18.dp, vertical = 16.dp),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment     = Alignment.CenterVertically
                 ) {
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
-                            text       = "입력 가능한 숫자만 선택 가능",
+                            text       = "입력 가능한 숫자만 선택",
                             fontSize   = 16.sp,
-                            fontWeight = FontWeight.SemiBold,
+                            fontWeight = FontWeight.Bold,
                             color      = Color(0xFF263238)
                         )
                         Spacer(modifier = Modifier.height(4.dp))
                         Text(
                             text     = if (onlyAvailableNumbers) {
-                                "빈칸 터치 시 규칙상 입력 가능한 숫자만 활성화합니다."
+                                "빈칸 터치 시 규칙상 입력 가능한 숫자만 가이드합니다."
                             } else {
-                                "빈칸 터치 시 모든 숫자를 자유롭게 입력할 수 있습니다."
+                                "비활성화 상태: 모든 숫자를 자유롭게 입력할 수 있습니다."
                             },
                             fontSize = 13.sp,
-                            color    = Color(0xFF78909C)
+                            color    = if (onlyAvailableNumbers) EasyColor else Color(0xFF78909C)
                         )
                     }
-                    Spacer(modifier = Modifier.width(12.dp))
-                    Checkbox(
+                    Spacer(modifier = Modifier.width(16.dp))
+                    Switch(
                         checked = onlyAvailableNumbers,
                         onCheckedChange = { viewModel.setOnlyAvailableNumbers(it) },
-                        colors = CheckboxDefaults.colors(
-                            checkedColor = EasyColor,
-                            checkmarkColor = Color.White
+                        colors = SwitchDefaults.colors(
+                            checkedThumbColor = Color.White,
+                            checkedTrackColor = EasyColor,
+                            uncheckedThumbColor = Color.White,
+                            uncheckedTrackColor = Color(0xFFCFD8DC),
+                            uncheckedBorderColor = Color.Transparent
                         )
                     )
                 }

@@ -10,8 +10,9 @@ class GamePreferences(context: Context) {
     private val prefs: SharedPreferences =
         context.getSharedPreferences("sudoku_preferences", Context.MODE_PRIVATE)
 
+    // 기본값: 비활성 (false)
     private val _onlyAvailableNumbers = MutableStateFlow(
-        prefs.getBoolean(KEY_ONLY_AVAILABLE_NUMBERS, true)
+        prefs.getBoolean(KEY_ONLY_AVAILABLE_NUMBERS, false)
     )
     val onlyAvailableNumbers: StateFlow<Boolean> = _onlyAvailableNumbers.asStateFlow()
 
@@ -25,7 +26,7 @@ class GamePreferences(context: Context) {
         set(value) = prefs.edit().putInt(KEY_SEEDER_VERSION, value).apply()
 
     companion object {
-        private const val KEY_ONLY_AVAILABLE_NUMBERS = "only_available_numbers"
+        private const val KEY_ONLY_AVAILABLE_NUMBERS = "only_available_numbers_v2"
         private const val KEY_SEEDER_VERSION = "seeder_version"
     }
 }

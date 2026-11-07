@@ -21,6 +21,8 @@ import kotlinx.coroutines.delay
 fun ClearScreen(
     stars          : Int,
     elapsedSeconds : Int,
+    hasNextPuzzle  : Boolean = true,
+    onReplay       : () -> Unit,
     onNextPuzzle   : () -> Unit,
     onBackToList   : () -> Unit
 ) {
@@ -46,22 +48,24 @@ fun ClearScreen(
     ) {
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
-            modifier            = Modifier.padding(32.dp)
+            modifier            = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 24.dp)
         ) {
             // Celebration emoji
             Text(
                 text     = "🎉",
-                fontSize = 90.sp,
+                fontSize = 80.sp,
                 modifier = Modifier.scale(scale)
             )
-            Spacer(modifier = Modifier.height(12.dp))
+            Spacer(modifier = Modifier.height(10.dp))
             Text(
                 text       = "완성했어요!",
-                fontSize   = 38.sp,
+                fontSize   = 34.sp,
                 fontWeight = FontWeight.ExtraBold,
                 color      = Color(0xFF2E7D32)
             )
-            Spacer(modifier = Modifier.height(24.dp))
+            Spacer(modifier = Modifier.height(20.dp))
 
             // Star rating
             Row(
@@ -83,59 +87,94 @@ fun ClearScreen(
                     )
                     Text(
                         text       = if (i <= stars) "★" else "☆",
-                        fontSize   = 56.sp,
+                        fontSize   = 52.sp,
                         color      = if (i <= stars) StarColor else Color(0xFFCFD8DC),
                         modifier   = Modifier.scale(starScale)
                     )
                 }
             }
 
-            Spacer(modifier = Modifier.height(28.dp))
+            Spacer(modifier = Modifier.height(24.dp))
 
             // Time card
             Card(
-                shape  = RoundedCornerShape(20.dp),
-                colors = CardDefaults.cardColors(containerColor = Color.White),
-                elevation = CardDefaults.cardElevation(4.dp)
+                shape     = RoundedCornerShape(20.dp),
+                colors    = CardDefaults.cardColors(containerColor = Color.White),
+                elevation = CardDefaults.cardElevation(3.dp)
             ) {
                 Column(
-                    modifier            = Modifier.padding(horizontal = 36.dp, vertical = 20.dp),
+                    modifier            = Modifier.padding(horizontal = 40.dp, vertical = 18.dp),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
                     Text(
                         text     = "⏱  걸린 시간",
-                        fontSize = 16.sp,
+                        fontSize = 15.sp,
                         color    = Color(0xFF78909C)
                     )
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
                         text       = timeStr,
-                        fontSize   = 36.sp,
+                        fontSize   = 32.sp,
+                        fontWeight = FontWeight.Bold,
+                        color      = Color(0xFF263238)
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(32.dp))
+
+            // Buttons: "다시하기" is on the LEFT of "다음판 진행하기"
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                OutlinedButton(
+                    onClick  = onReplay,
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(58.dp),
+                    shape    = RoundedCornerShape(16.dp),
+                    colors   = ButtonDefaults.outlinedButtonColors(
+                        contentColor = Color(0xFF37474F)
+                    )
+                ) {
+                    Text(
+                        text       = "다시하기 ↺",
+                        fontSize   = 17.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+
+                Button(
+                    onClick  = onNextPuzzle,
+                    enabled  = hasNextPuzzle,
+                    modifier = Modifier
+                        .weight(1.25f)
+                        .height(58.dp),
+                    shape    = RoundedCornerShape(16.dp)
+                ) {
+                    Text(
+                        text       = "다음판 진행하기 →",
+                        fontSize   = 17.sp,
                         fontWeight = FontWeight.Bold
                     )
                 }
             }
 
-            Spacer(modifier = Modifier.height(36.dp))
+            Spacer(modifier = Modifier.height(12.dp))
 
-            Button(
-                onClick  = onNextPuzzle,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(60.dp),
-                shape = RoundedCornerShape(18.dp)
-            ) {
-                Text("다음 문제  →", fontSize = 20.sp, fontWeight = FontWeight.Bold)
-            }
-            Spacer(modifier = Modifier.height(14.dp))
             OutlinedButton(
                 onClick  = onBackToList,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(60.dp),
-                shape = RoundedCornerShape(18.dp)
+                    .height(54.dp),
+                shape    = RoundedCornerShape(16.dp)
             ) {
-                Text("목록으로", fontSize = 20.sp)
+                Text(
+                    text     = "목록으로",
+                    fontSize = 17.sp,
+                    color    = Color(0xFF546E7A)
+                )
             }
         }
     }

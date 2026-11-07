@@ -24,11 +24,12 @@ import com.kidssudoku.puzzle.ui.theme.*
 
 @Composable
 fun PuzzleListScreen(
-    gridSize: Int,
-    difficulty: String,
-    onPuzzleSelected: (puzzleId: Int) -> Unit,
-    onBack: () -> Unit,
-    viewModel: PuzzleListViewModel
+    gridSize                : Int,
+    difficulty              : String,
+    onPuzzleSelected        : (puzzleId: Int) -> Unit,
+    onClearedPuzzleSelected : (puzzleId: Int, stars: Int, elapsedSeconds: Int) -> Unit,
+    onBack                  : () -> Unit,
+    viewModel               : PuzzleListViewModel
 ) {
     LaunchedEffect(gridSize, difficulty) {
         viewModel.load(gridSize, difficulty)
@@ -100,7 +101,14 @@ fun PuzzleListScreen(
                             status     = status,
                             stars      = progress?.starRating ?: 0,
                             onClick    = {
-                                if (status != PuzzleStatus.LOCKED.name) {
+                                if (status == PuzzleStatus.CLEARED.name) {
+                                    // 이미 완료한 판 클릭 시 결과 화면 표시
+                                    onClearedPuzzleSelected(
+                                        puzzle.id,
+                                        progress?.starRating ?: 3,
+                                        progress?.elapsedSeconds ?: 0
+                                    )
+                                } else if (status != PuzzleStatus.LOCKED.name) {
                                     onPuzzleSelected(puzzle.id)
                                 }
                             }

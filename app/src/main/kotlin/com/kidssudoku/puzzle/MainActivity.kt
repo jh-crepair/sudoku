@@ -93,13 +93,24 @@ fun SudokuApp(
                     factory = PuzzleListViewModel.Factory(app.repository)
                 )
                 PuzzleListScreen(
-                    gridSize        = route.gridSize,
-                    difficulty      = route.difficulty,
-                    onPuzzleSelected = { puzzleId ->
+                    gridSize                = route.gridSize,
+                    difficulty              = route.difficulty,
+                    onPuzzleSelected        = { puzzleId ->
                         backStack.add(GameRoute(puzzleId))
                     },
-                    onBack = { backStack.removeLastOrNull() },
-                    viewModel = vm
+                    onClearedPuzzleSelected = { puzzleId, stars, elapsed ->
+                        backStack.add(
+                            ClearRoute(
+                                puzzleId       = puzzleId,
+                                stars          = stars,
+                                elapsedSeconds = elapsed,
+                                gridSize       = route.gridSize,
+                                difficulty     = route.difficulty
+                            )
+                        )
+                    },
+                    onBack                  = { backStack.removeLastOrNull() },
+                    viewModel               = vm
                 )
             }
 
@@ -133,9 +144,30 @@ fun SudokuApp(
             // ── Clear ────────────────────────────────────────────────────
             entry<ClearRoute> { route ->
                 val coroutineScope = rememberCoroutineScope()
+                var hasNextPuzzle by remember { mutableStateOf(true) }
+
+                LaunchedEffect(route.puzzleId) {
+                    val puzzles = app.repository
+                        .getPuzzles(route.gridSize, route.difficulty)
+                        .first()
+                    val current = puzzles.find { it.id == route.puzzleId }
+                    hasNextPuzzle = (current != null && puzzles.any { it.orderIndex == current.orderIndex + 1 })
+                }
+
                 ClearScreen(
                     stars          = route.stars,
                     elapsedSeconds = route.elapsedSeconds,
+                    hasNextPuzzle  = hasNextPuzzle,
+                    onReplay       = {
+                        coroutineScope.launch {
+                            app.repository.resetPuzzlePlayState(route.puzzleId)
+                            backStack.removeLastOrNull() // pop ClearRoute
+                            if (backStack.lastOrNull() is GameRoute) {
+                                backStack.removeLastOrNull() // pop previous GameRoute
+                            }
+                            backStack.add(GameRoute(route.puzzleId))
+                        }
+                    },
                     onNextPuzzle   = {
                         coroutineScope.launch {
                             val puzzles = app.repository
@@ -147,7 +179,9 @@ fun SudokuApp(
                             } else null
 
                             backStack.removeLastOrNull() // pop ClearRoute
-                            backStack.removeLastOrNull() // pop GameRoute
+                            if (backStack.lastOrNull() is GameRoute) {
+                                backStack.removeLastOrNull() // pop previous GameRoute
+                            }
                             if (next != null) {
                                 backStack.add(GameRoute(next.id))
                             }
@@ -155,7 +189,9 @@ fun SudokuApp(
                     },
                     onBackToList = {
                         backStack.removeLastOrNull() // pop ClearRoute
-                        backStack.removeLastOrNull() // pop GameRoute
+                        if (backStack.lastOrNull() is GameRoute) {
+                            backStack.removeLastOrNull() // pop GameRoute
+                        }
                     }
                 )
             }

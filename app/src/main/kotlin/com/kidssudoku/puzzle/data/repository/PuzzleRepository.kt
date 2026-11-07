@@ -6,6 +6,7 @@ import com.kidssudoku.puzzle.data.model.Progress
 import com.kidssudoku.puzzle.data.model.Puzzle
 import com.kidssudoku.puzzle.data.model.PuzzleStatus
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.first
 
 class PuzzleRepository(
     private val puzzleDao: PuzzleDao,
@@ -28,6 +29,20 @@ class PuzzleRepository(
 
     suspend fun resetProgress(gridSize: Int, difficulty: String) {
         progressDao.deleteProgressByTypeAndDifficulty(gridSize, difficulty)
+    }
+
+    suspend fun resetPuzzlePlayState(puzzleId: Int) {
+        val current = progressDao.getProgressByPuzzleId(puzzleId).first()
+        if (current != null) {
+            progressDao.upsert(
+                current.copy(
+                    currentState = "",
+                    hintUsedCount = 0,
+                    elapsedSeconds = 0,
+                    status = PuzzleStatus.UNLOCKED.name
+                )
+            )
+        }
     }
 
     suspend fun getPuzzleCount(): Int = puzzleDao.count()
