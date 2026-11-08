@@ -31,7 +31,6 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        enableEdgeToEdge()
 
         val app = application as SudokuApplication
 
@@ -42,12 +41,17 @@ class MainActivity : ComponentActivity() {
 
         setContent {
             SudokuTheme {
-                SudokuApp(
-                    app = app,
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .systemBarsPadding()
-                )
+                androidx.compose.material3.Surface(
+                    modifier = Modifier.fillMaxSize(),
+                    color = com.kidssudoku.puzzle.ui.theme.CreamBackground
+                ) {
+                    SudokuApp(
+                        app = app,
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .systemBarsPadding()
+                    )
+                }
             }
         }
     }

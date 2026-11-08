@@ -39,7 +39,7 @@ fun HomeScreen(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(horizontal = 24.dp),
+                .padding(horizontal = 20.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
@@ -64,7 +64,7 @@ fun HomeScreen(
             GridSizeCard(
                 emoji    = "🌱",
                 label    = "4단",
-                subtitle = "1 ~ 4 숫자  •  초등 저학년",
+                subtitle = "1~4 숫자 · 초등 저학년",
                 color    = EasyColor,
                 onClick  = { onGridSizeSelected(4) }
             )
@@ -72,7 +72,7 @@ fun HomeScreen(
             GridSizeCard(
                 emoji    = "🌿",
                 label    = "6단",
-                subtitle = "1 ~ 6 숫자  •  초등 중학년",
+                subtitle = "1~6 숫자 · 초등 중학년",
                 color    = MediumColor,
                 onClick  = { onGridSizeSelected(6) }
             )
@@ -80,7 +80,7 @@ fun HomeScreen(
             GridSizeCard(
                 emoji    = "🌳",
                 label    = "9단",
-                subtitle = "1 ~ 9 숫자  •  초등 고학년",
+                subtitle = "1~9 숫자 · 초등 고학년",
                 color    = HardColor,
                 onClick  = { onGridSizeSelected(9) }
             )
@@ -99,7 +99,7 @@ private fun GridSizeCard(
     Surface(
         modifier = Modifier
             .fillMaxWidth()
-            .height(104.dp)
+            .heightIn(min = 96.dp)
             .clip(RoundedCornerShape(22.dp))
             .clickable(onClick = onClick),
         shape = RoundedCornerShape(22.dp),
@@ -110,38 +110,39 @@ private fun GridSizeCard(
     ) {
         Box(
             modifier = Modifier
-                .fillMaxSize()
+                .fillMaxWidth()
                 .background(color.copy(alpha = 0.08f))
         ) {
             Row(
                 modifier = Modifier
-                    .fillMaxSize()
-                    .padding(horizontal = 22.dp, vertical = 12.dp),
+                    .fillMaxWidth()
+                    .padding(horizontal = 18.dp, vertical = 14.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(text = emoji, fontSize = 42.sp)
-                Spacer(modifier = Modifier.width(18.dp))
+                Text(text = emoji, fontSize = 40.sp)
+                Spacer(modifier = Modifier.width(16.dp))
                 Column(
                     modifier = Modifier.weight(1f),
                     verticalArrangement = Arrangement.Center
                 ) {
                     Text(
                         text = label,
-                        fontSize = 28.sp,
+                        fontSize = 26.sp,
                         fontWeight = FontWeight.Bold,
                         color = color
                     )
-                    Spacer(modifier = Modifier.height(4.dp))
+                    Spacer(modifier = Modifier.height(3.dp))
                     Text(
                         text = subtitle,
-                        fontSize = 14.sp,
+                        fontSize = 13.5.sp,
                         fontWeight = FontWeight.Medium,
                         color = Color(0xFF607D8B)
                     )
                 }
+                Spacer(modifier = Modifier.width(8.dp))
                 Text(
                     text = "→",
-                    fontSize = 28.sp,
+                    fontSize = 26.sp,
                     fontWeight = FontWeight.Bold,
                     color = color.copy(alpha = 0.7f)
                 )

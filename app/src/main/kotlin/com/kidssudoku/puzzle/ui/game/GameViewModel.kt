@@ -15,6 +15,11 @@ import kotlinx.coroutines.flow.*
 import org.json.JSONArray
 import org.json.JSONObject
 
+enum class GameOverReason {
+    TIME_OVER,
+    MISTAKES_EXCEEDED
+}
+
 data class GameUiState(
     val puzzleInfo : String                  = "",
     val grid       : List<List<Int>>         = emptyList(),
@@ -31,6 +36,16 @@ class GameViewModel(
     private val soundManager: SoundManager
 ) : ViewModel() {
 
+    companion object {
+        const val MAX_FAIL_COUNT = 10
+
+        fun getTimeLimit(difficulty: String): Int = when (difficulty) {
+            "EASY"   -> 5 * 60   // 초급 5분
+            "MEDIUM" -> 8 * 60   // 중급 8분
+            else     -> 10 * 60  // 상급 10분
+        }
+    }
+
     private val _uiState          = MutableStateFlow(GameUiState())
     val uiState: StateFlow<GameUiState> = _uiState.asStateFlow()
 
@@ -46,7 +61,19 @@ class GameViewModel(
     private val _elapsedSeconds   = MutableStateFlow(0)
     val elapsedSeconds: StateFlow<Int> = _elapsedSeconds.asStateFlow()
 
-    private val _hintsRemaining   = MutableStateFlow(5)
+    private val _timeLimitSeconds = MutableStateFlow(300)
+    val timeLimitSeconds: StateFlow<Int> = _timeLimitSeconds.asStateFlow()
+
+    private val _failCount        = MutableStateFlow(0)
+    val failCount: StateFlow<Int> = _failCount.asStateFlow()
+
+    private val _isGameOver       = MutableStateFlow(false)
+    val isGameOver: StateFlow<Boolean> = _isGameOver.asStateFlow()
+
+    private val _gameOverReason   = MutableStateFlow<GameOverReason?>(null)
+    val gameOverReason: StateFlow<GameOverReason?> = _gameOverReason.asStateFlow()
+
+    private val _hintsRemaining   = MutableStateFlow(3)
     val hintsRemaining: StateFlow<Int> = _hintsRemaining.asStateFlow()
 
     private val _isCleared        = MutableStateFlow(false)
@@ -75,10 +102,13 @@ class GameViewModel(
         this.puzzleId = id
         _isCleared.value                = false
         _isPaused.value                 = false
+        _isGameOver.value               = false
+        _gameOverReason.value           = null
+        _failCount.value                = 0
         _selectedCell.value             = null
         _showNumberPicker.value         = false
         _elapsedSeconds.value           = 0
-        _hintsRemaining.value           = 5
+        _hintsRemaining.value           = 3
         _conflictingSourceCells.value   = emptySet()
         _conflictTrigger.value          = 0L
         _uiState.value                  = GameUiState()
@@ -87,6 +117,9 @@ class GameViewModel(
             val puzzle = repository.getPuzzleById(id) ?: return@launch
             currentPuzzle = puzzle
             gridSize      = puzzle.gridSize
+            val maxHints  = getMaxHints(puzzle.difficulty)
+            val limitSec  = getTimeLimit(puzzle.difficulty)
+            _timeLimitSeconds.value = limitSec
 
             // Parse solution with org.json
             val solutionArray = JSONArray(puzzle.solution)
@@ -113,8 +146,8 @@ class GameViewModel(
             // Load saved progress
             val savedProgress = repository.getProgress(id).first()
             if (savedProgress != null && savedProgress.status != PuzzleStatus.CLEARED.name) {
-                _hintsRemaining.value = (5 - savedProgress.hintUsedCount).coerceIn(0, 5)
-                _elapsedSeconds.value = savedProgress.elapsedSeconds
+                _hintsRemaining.value = (maxHints - savedProgress.hintUsedCount).coerceIn(0, maxHints)
+                _elapsedSeconds.value = if (savedProgress.elapsedSeconds >= limitSec) 0 else savedProgress.elapsedSeconds
 
                 // Restore in-progress state
                 if (savedProgress.currentState.isNotEmpty()) {
@@ -130,7 +163,7 @@ class GameViewModel(
                     }
                 }
             } else {
-                _hintsRemaining.value = 5
+                _hintsRemaining.value = maxHints
                 _elapsedSeconds.value = 0
             }
 
@@ -160,14 +193,75 @@ class GameViewModel(
         timerJob = viewModelScope.launch {
             while (true) {
                 delay(1000)
-                if (!_isPaused.value && !_isCleared.value) {
+                if (!_isPaused.value && !_isCleared.value && !_isGameOver.value) {
                     _elapsedSeconds.value++
+                    val limit = _timeLimitSeconds.value
+                    if (limit > 0 && _elapsedSeconds.value >= limit) {
+                        triggerGameOver(GameOverReason.TIME_OVER)
+                        break
+                    }
                 }
             }
         }
     }
 
+    private fun triggerGameOver(reason: GameOverReason) {
+        timerJob?.cancel()
+        _isGameOver.value = true
+        _gameOverReason.value = reason
+        _showNumberPicker.value = false
+        _selectedCell.value = null
+        soundManager.play(SoundEffect.GAME_OVER)
+    }
+
+    fun restartCurrentPuzzle() {
+        val puzzle = currentPuzzle ?: return
+        val fixed = _uiState.value.fixedCells
+        for (r in 0 until gridSize) {
+            for (c in 0 until gridSize) {
+                if (r to c !in fixed) {
+                    currentGrid[r][c] = 0
+                }
+            }
+        }
+        _elapsedSeconds.value = 0
+        _failCount.value = 0
+        _hintsRemaining.value = getMaxHints(puzzle.difficulty)
+        _isGameOver.value = false
+        _gameOverReason.value = null
+        _isPaused.value = false
+        _isCleared.value = false
+        _conflictingSourceCells.value = emptySet()
+        _selectedCell.value = null
+        _showNumberPicker.value = false
+
+        viewModelScope.launch {
+            repository.resetPuzzlePlayState(puzzleId)
+        }
+        refreshState()
+        startTimer()
+    }
+
+    fun clearAllUserInput() {
+        if (_isGameOver.value || _isCleared.value) return
+        val fixed = _uiState.value.fixedCells
+        for (r in 0 until gridSize) {
+            for (c in 0 until gridSize) {
+                if (r to c !in fixed) {
+                    currentGrid[r][c] = 0
+                }
+            }
+        }
+        _conflictingSourceCells.value = emptySet()
+        _selectedCell.value = null
+        _showNumberPicker.value = false
+        soundManager.play(SoundEffect.BUTTON_CLICK)
+        refreshState()
+        saveProgress()
+    }
+
     fun togglePause() {
+        if (_isGameOver.value || _isCleared.value) return
         _isPaused.value = !_isPaused.value
         soundManager.play(SoundEffect.BUTTON_CLICK)
         if (_isPaused.value) saveProgress()
@@ -176,6 +270,7 @@ class GameViewModel(
     // ── Cell interaction ──────────────────────────────────────────────────────
 
     fun onCellClick(row: Int, col: Int) {
+        if (_isGameOver.value || _isCleared.value || _isPaused.value) return
         val state = _uiState.value
         if (row to col in state.fixedCells) {
             _selectedCell.value = null
@@ -262,16 +357,27 @@ class GameViewModel(
     }
 
     fun inputNumber(row: Int, col: Int, num: Int) {
+        if (_isGameOver.value || _isCleared.value) return
         val state = _uiState.value
         if (row to col in state.fixedCells) return
 
         // Check conflicts with currently visible numbers on board
         val conflicts = findConflictingCells(row, col, num)
         if (conflicts.isNotEmpty()) {
+            _failCount.value++
             soundManager.play(SoundEffect.ERROR_INPUT)
             // Trigger ripple wave effect on the source conflicting cells!
             _conflictingSourceCells.value = conflicts
             _conflictTrigger.value = System.currentTimeMillis()
+
+            if (_failCount.value >= MAX_FAIL_COUNT) {
+                currentGrid[row][col] = num
+                _showNumberPicker.value = false
+                _selectedCell.value     = null
+                refreshState()
+                triggerGameOver(GameOverReason.MISTAKES_EXCEEDED)
+                return
+            }
         } else {
             soundManager.play(SoundEffect.NUMBER_INPUT)
             _conflictingSourceCells.value = emptySet()
@@ -290,6 +396,7 @@ class GameViewModel(
     }
 
     fun deleteNumber(row: Int, col: Int) {
+        if (_isGameOver.value || _isCleared.value) return
         val state = _uiState.value
         if (row to col in state.fixedCells) return
         soundManager.play(SoundEffect.BUTTON_CLICK)
@@ -304,6 +411,7 @@ class GameViewModel(
     // ── Hint ──────────────────────────────────────────────────────────────────
 
     fun useHint() {
+        if (_isGameOver.value || _isCleared.value || _isPaused.value) return
         if (_hintsRemaining.value <= 0) return
         val state    = _uiState.value
         val empties  = mutableListOf<Pair<Int, Int>>()
@@ -369,6 +477,12 @@ class GameViewModel(
         return true
     }
 
+    private fun getMaxHints(difficulty: String): Int = when (difficulty) {
+        "EASY"   -> 3
+        "MEDIUM" -> 2
+        else     -> 1
+    }
+
     private fun onPuzzleSolved() {
         timerJob?.cancel()
         _isCleared.value = true
@@ -376,11 +490,12 @@ class GameViewModel(
         viewModelScope.launch {
             val stars   = calculateStars()
             val puzzle  = currentPuzzle ?: return@launch
+            val maxH    = getMaxHints(puzzle.difficulty)
             val existing = repository.getProgress(puzzleId).first()
             repository.saveProgress(
                 (existing ?: Progress(puzzleId = puzzleId)).copy(
                     status       = PuzzleStatus.CLEARED.name,
-                    hintUsedCount = 5 - _hintsRemaining.value,
+                    hintUsedCount = (maxH - _hintsRemaining.value).coerceAtLeast(0),
                     elapsedSeconds = _elapsedSeconds.value,
                     starRating   = stars,
                     currentState = "",
@@ -438,11 +553,12 @@ class GameViewModel(
                     jsonArray.put(currentGrid[r][c])
                 }
             }
+            val maxH = currentPuzzle?.let { getMaxHints(it.difficulty) } ?: 3
             val existing = repository.getProgress(puzzleId).first()
             repository.saveProgress(
                 (existing ?: Progress(puzzleId = puzzleId)).copy(
                     status        = PuzzleStatus.UNLOCKED.name,
-                    hintUsedCount = 5 - _hintsRemaining.value,
+                    hintUsedCount = (maxH - _hintsRemaining.value).coerceAtLeast(0),
                     elapsedSeconds = _elapsedSeconds.value,
                     currentState  = jsonArray.toString(),
                     updatedAt     = System.currentTimeMillis()

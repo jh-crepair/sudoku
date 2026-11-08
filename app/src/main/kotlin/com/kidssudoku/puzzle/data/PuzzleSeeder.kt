@@ -21,7 +21,7 @@ class PuzzleSeeder(
     private val mutex = Mutex()
 
     companion object {
-        private const val CURRENT_SEEDER_VERSION = 3
+        private const val CURRENT_SEEDER_VERSION = 4
     }
 
     suspend fun seedIfNeeded() = withContext(Dispatchers.IO) {
@@ -42,19 +42,16 @@ class PuzzleSeeder(
             val puzzleList = mutableListOf<Puzzle>()
 
             // (gridSize, difficulty, count, startRevealCount, endRevealCount)
-            // 4단: 초급 10개, 중급 20개, 상급 30개
-            // 6단: 초급 20개, 중급 30개, 상급 40개
-            // 9단: 초급 20개, 중급 30개, 상급 50개
             val configs = listOf(
                 DifficultyConfig(4, "EASY",   count = 10, startReveal = 11, endReveal = 9),
-                DifficultyConfig(4, "MEDIUM", count = 20, startReveal = 8,  endReveal = 6),
-                DifficultyConfig(4, "HARD",   count = 30, startReveal = 6,  endReveal = 4),
-                DifficultyConfig(6, "EASY",   count = 20, startReveal = 22, endReveal = 18),
-                DifficultyConfig(6, "MEDIUM", count = 30, startReveal = 17, endReveal = 13),
-                DifficultyConfig(6, "HARD",   count = 40, startReveal = 13, endReveal = 10),
-                DifficultyConfig(9, "EASY",   count = 20, startReveal = 44, endReveal = 36),
-                DifficultyConfig(9, "MEDIUM", count = 30, startReveal = 34, endReveal = 28),
-                DifficultyConfig(9, "HARD",   count = 50, startReveal = 26, endReveal = 21)
+                DifficultyConfig(4, "MEDIUM", count = 10, startReveal = 8,  endReveal = 6),
+                DifficultyConfig(4, "HARD",   count = 10, startReveal = 6,  endReveal = 4),
+                DifficultyConfig(6, "EASY",   count = 10, startReveal = 22, endReveal = 18),
+                DifficultyConfig(6, "MEDIUM", count = 10, startReveal = 17, endReveal = 13),
+                DifficultyConfig(6, "HARD",   count = 10, startReveal = 13, endReveal = 10),
+                DifficultyConfig(9, "EASY",   count = 10, startReveal = 44, endReveal = 36),
+                DifficultyConfig(9, "MEDIUM", count = 10, startReveal = 34, endReveal = 28),
+                DifficultyConfig(9, "HARD",   count = 10, startReveal = 28, endReveal = 24)
             )
 
             var seed = 12345L

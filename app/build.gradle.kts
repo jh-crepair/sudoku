@@ -5,6 +5,10 @@ plugins {
   alias(libs.plugins.ksp)
 }
 
+base {
+  archivesName.set("sudoku")
+}
+
 android {
   namespace = "com.kidssudoku.puzzle"
   compileSdk = 37

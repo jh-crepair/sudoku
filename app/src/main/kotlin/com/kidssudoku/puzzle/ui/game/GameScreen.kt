@@ -6,6 +6,7 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -24,11 +25,13 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.kidssudoku.puzzle.R
 import com.kidssudoku.puzzle.ui.theme.*
 
 @Composable
@@ -45,11 +48,17 @@ fun GameScreen(
     val showNumberPicker       by viewModel.showNumberPicker.collectAsStateWithLifecycle()
     val isPaused               by viewModel.isPaused.collectAsStateWithLifecycle()
     val elapsedSeconds         by viewModel.elapsedSeconds.collectAsStateWithLifecycle()
+    val timeLimitSeconds       by viewModel.timeLimitSeconds.collectAsStateWithLifecycle()
+    val failCount              by viewModel.failCount.collectAsStateWithLifecycle()
+    val isGameOver             by viewModel.isGameOver.collectAsStateWithLifecycle()
+    val gameOverReason         by viewModel.gameOverReason.collectAsStateWithLifecycle()
     val hintsRemaining         by viewModel.hintsRemaining.collectAsStateWithLifecycle()
     val isCleared              by viewModel.isCleared.collectAsStateWithLifecycle()
     val onlyAvailableNumbers   by viewModel.onlyAvailableNumbersAllowed.collectAsStateWithLifecycle()
     val conflictingSourceCells by viewModel.conflictingSourceCells.collectAsStateWithLifecycle()
     val conflictTrigger        by viewModel.conflictTrigger.collectAsStateWithLifecycle()
+
+    var showClearConfirmDialog by remember { mutableStateOf(false) }
 
     LaunchedEffect(isCleared) {
         if (isCleared) {
@@ -74,16 +83,13 @@ fun GameScreen(
 
             // ── HUD ──────────────────────────────────────────────────────────
             GameHud(
-                puzzleInfo     = uiState.puzzleInfo,
-                elapsedSeconds = elapsedSeconds,
-                hintsRemaining = hintsRemaining,
-                isPaused       = isPaused,
-                onBack         = onBack,
-                onHint         = { viewModel.useHint() },
-                onPause        = { viewModel.togglePause() }
+                puzzleInfo       = uiState.puzzleInfo,
+                elapsedSeconds   = elapsedSeconds,
+                timeLimitSeconds = timeLimitSeconds,
+                onBack           = onBack
             )
 
-            Spacer(modifier = Modifier.height(20.dp))
+            Spacer(modifier = Modifier.height(16.dp))
 
             // ── Grid ─────────────────────────────────────────────────────────
             if (uiState.grid.isNotEmpty()) {
@@ -108,6 +114,25 @@ fun GameScreen(
                     CircularProgressIndicator()
                 }
             }
+
+            // ── 게임판 하단: 실패 회수/제한 회수 정보 표시 ───────────────────
+            FailureCountBadge(
+                failCount    = failCount,
+                maxFailCount = GameViewModel.MAX_FAIL_COUNT
+            )
+
+            Spacer(modifier = Modifier.weight(1f))
+
+            // ── 하단 컨트롤 (모두 지우기 & 힌트 보기 & 일시 정지) ─────────────
+            GameBottomControls(
+                hintsRemaining = hintsRemaining,
+                isPaused       = isPaused,
+                onClearAll     = { showClearConfirmDialog = true },
+                onHint         = { viewModel.useHint() },
+                onPause        = { viewModel.togglePause() }
+            )
+
+            Spacer(modifier = Modifier.height(20.dp))
         }
 
         // ── Number picker popup ───────────────────────────────────────────────
@@ -128,6 +153,196 @@ fun GameScreen(
             }
         }
 
+        // ── "모두 지우기" 확인 다이얼로그 ─────────────────────────────────────
+        if (showClearConfirmDialog) {
+            AlertDialog(
+                onDismissRequest = { showClearConfirmDialog = false },
+                title = {
+                    Text(
+                        text       = "모두 지우기",
+                        fontWeight = FontWeight.Bold,
+                        fontSize   = 20.sp,
+                        color      = Color(0xFF263238)
+                    )
+                },
+                text = {
+                    Text(
+                        text     = "입력한 모든 숫자를 지우시겠습니까?",
+                        fontSize = 16.sp,
+                        color    = Color(0xFF455A64)
+                    )
+                },
+                confirmButton = {
+                    Button(
+                        onClick = {
+                            showClearConfirmDialog = false
+                            viewModel.clearAllUserInput()
+                        },
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = Color(0xFFE53935)
+                        ),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Text(
+                            text       = "지우기",
+                            fontWeight = FontWeight.Bold,
+                            color      = Color.White
+                        )
+                    }
+                },
+                dismissButton = {
+                    OutlinedButton(
+                        onClick = { showClearConfirmDialog = false },
+                        shape   = RoundedCornerShape(12.dp)
+                    ) {
+                        Text(
+                            text  = "취소",
+                            color = Color(0xFF546E7A)
+                        )
+                    }
+                },
+                shape          = RoundedCornerShape(20.dp),
+                containerColor = Color.White
+            )
+        }
+
+        // ── Game Over overlay ─────────────────────────────────────────────────
+        AnimatedVisibility(
+            visible = isGameOver,
+            enter   = fadeIn() + scaleIn(initialScale = 0.9f),
+            exit    = fadeOut() + scaleOut()
+        ) {
+            val isTimeOver = gameOverReason == GameOverReason.TIME_OVER
+            val reasonDesc = if (isTimeOver) {
+                "제한 시간을 초과했습니다!"
+            } else {
+                "실패 횟수가 ${GameViewModel.MAX_FAIL_COUNT}회에 도달했습니다!"
+            }
+            val emoji = if (isTimeOver) "⏰" else "❌"
+
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color.Black.copy(alpha = 0.85f))
+                    .clickable(enabled = false) {},
+                contentAlignment = Alignment.Center
+            ) {
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 24.dp),
+                    shape     = RoundedCornerShape(28.dp),
+                    colors    = CardDefaults.cardColors(containerColor = Color.White),
+                    elevation = CardDefaults.cardElevation(12.dp)
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 28.dp, vertical = 36.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.Center
+                    ) {
+                        Text(emoji, fontSize = 64.sp)
+                        Spacer(modifier = Modifier.height(14.dp))
+                        Text(
+                            text       = "게임 실패",
+                            fontSize   = 28.sp,
+                            fontWeight = FontWeight.ExtraBold,
+                            color      = Color(0xFFD32F2F)
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            text       = reasonDesc,
+                            fontSize   = 16.sp,
+                            color      = Color(0xFF546E7A),
+                            textAlign  = TextAlign.Center,
+                            lineHeight = 22.sp
+                        )
+                        Spacer(modifier = Modifier.height(20.dp))
+
+                        // Stats card
+                        Surface(
+                            shape    = RoundedCornerShape(16.dp),
+                            color    = Color(0xFFF5F7FA),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Column(
+                                modifier = Modifier.padding(16.dp),
+                                verticalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    Text("진행 시간", fontSize = 14.sp, color = Color(0xFF78909C))
+                                    val elMin = elapsedSeconds / 60
+                                    val elSec = elapsedSeconds % 60
+                                    val limMin = timeLimitSeconds / 60
+                                    val limSec = timeLimitSeconds % 60
+                                    Text(
+                                        "%02d:%02d / %02d:%02d".format(elMin, elSec, limMin, limSec),
+                                        fontSize   = 14.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color      = Color(0xFF263238)
+                                    )
+                                }
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    Text("실패 회수", fontSize = 14.sp, color = Color(0xFF78909C))
+                                    Text(
+                                        "$failCount / ${GameViewModel.MAX_FAIL_COUNT}",
+                                        fontSize   = 14.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color      = if (failCount >= GameViewModel.MAX_FAIL_COUNT) Color(0xFFD32F2F) else Color(0xFF263238)
+                                    )
+                                }
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(26.dp))
+
+                        // Action buttons
+                        Button(
+                            onClick   = { viewModel.restartCurrentPuzzle() },
+                            modifier  = Modifier
+                                .fillMaxWidth()
+                                .height(54.dp),
+                            shape     = RoundedCornerShape(16.dp),
+                            colors    = ButtonDefaults.buttonColors(
+                                containerColor = EasyColor
+                            ),
+                            elevation = ButtonDefaults.buttonElevation(4.dp)
+                        ) {
+                            Text(
+                                text       = "다시하기 ↺",
+                                fontSize   = 18.sp,
+                                fontWeight = FontWeight.Bold,
+                                color      = Color.White
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.height(10.dp))
+
+                        OutlinedButton(
+                            onClick  = onBack,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(52.dp),
+                            shape    = RoundedCornerShape(16.dp)
+                        ) {
+                            Text(
+                                text     = "목록으로",
+                                fontSize = 16.sp,
+                                color    = Color(0xFF546E7A)
+                            )
+                        }
+                    }
+                }
+            }
+        }
+
         // ── Pause overlay ─────────────────────────────────────────────────────
         AnimatedVisibility(
             visible = isPaused,
@@ -137,33 +352,60 @@ fun GameScreen(
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .background(Color.Black.copy(alpha = 0.65f))
+                    .background(Color.Black.copy(alpha = 0.85f))
                     .clickable(enabled = false) {},
                 contentAlignment = Alignment.Center
             ) {
                 Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 20.dp)
+                        .heightIn(min = 450.dp),
                     shape  = RoundedCornerShape(28.dp),
                     colors = CardDefaults.cardColors(containerColor = Color.White),
-                    elevation = CardDefaults.cardElevation(8.dp)
+                    elevation = CardDefaults.cardElevation(12.dp)
                 ) {
                     Column(
-                        modifier = Modifier.padding(horizontal = 48.dp, vertical = 36.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 28.dp, vertical = 40.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.Center
                     ) {
-                        Text("⏸", fontSize = 56.sp)
-                        Spacer(modifier = Modifier.height(8.dp))
+                        Text("⏸️", fontSize = 64.sp)
+                        Spacer(modifier = Modifier.height(16.dp))
                         Text(
                             text       = "일시정지",
-                            fontSize   = 26.sp,
-                            fontWeight = FontWeight.Bold
+                            fontSize   = 28.sp,
+                            fontWeight = FontWeight.ExtraBold,
+                            color      = Color(0xFF263238)
                         )
-                        Spacer(modifier = Modifier.height(28.dp))
+                        Spacer(modifier = Modifier.height(12.dp))
+                        Text(
+                            text       = "준비가 되면 계속하기를 눌러주세요!",
+                            fontSize   = 15.sp,
+                            color      = Color(0xFF78909C),
+                            textAlign  = TextAlign.Center,
+                            lineHeight = 22.sp
+                        )
+                        Spacer(modifier = Modifier.height(40.dp))
                         Button(
-                            onClick = { viewModel.togglePause() },
-                            modifier  = Modifier.fillMaxWidth().height(56.dp),
-                            shape     = RoundedCornerShape(14.dp)
+                            onClick   = { viewModel.togglePause() },
+                            modifier  = Modifier
+                                .fillMaxWidth()
+                                .height(58.dp),
+                            shape     = RoundedCornerShape(16.dp),
+                            colors    = ButtonDefaults.buttonColors(
+                                containerColor = EasyColor
+                            ),
+                            elevation = ButtonDefaults.buttonElevation(4.dp)
                         ) {
-                            Text("계속하기", fontSize = 20.sp)
+                            Text(
+                                text       = "▶ 계속하기",
+                                fontSize   = 20.sp,
+                                fontWeight = FontWeight.Bold,
+                                color      = Color.White
+                            )
                         }
                     }
                 }
@@ -176,24 +418,41 @@ fun GameScreen(
 
 @Composable
 private fun GameHud(
-    puzzleInfo     : String,
-    elapsedSeconds : Int,
-    hintsRemaining : Int,
-    isPaused       : Boolean,
-    onBack         : () -> Unit,
-    onHint         : () -> Unit,
-    onPause        : () -> Unit
+    puzzleInfo       : String,
+    elapsedSeconds   : Int,
+    timeLimitSeconds : Int,
+    onBack           : () -> Unit
 ) {
-    val minutes = elapsedSeconds / 60
-    val seconds = elapsedSeconds % 60
-    val timeStr = "%02d:%02d".format(minutes, seconds)
+    val elapsedMinutes = elapsedSeconds / 60
+    val elapsedRemainingSeconds = elapsedSeconds % 60
+    val limitMinutes = timeLimitSeconds / 60
+    val limitRemainingSeconds = timeLimitSeconds % 60
+    val timeStr = "%02d:%02d / %02d:%02d".format(
+        elapsedMinutes,
+        elapsedRemainingSeconds,
+        limitMinutes,
+        limitRemainingSeconds
+    )
+
+    // 진행시간이 제한시간의 20% 이내만 남은 경우 (남은 시간 <= 제한시간 * 0.2)
+    val remainingSeconds = (timeLimitSeconds - elapsedSeconds).coerceAtLeast(0)
+    val isWarning = remainingSeconds <= (timeLimitSeconds * 0.2f)
+    val timerColor = if (isWarning) Color(0xFFE53935) else Color(0xFF333333)
 
     Row(
         modifier          = Modifier.fillMaxWidth(),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        IconButton(onClick = onBack) {
-            Text(text = "←", fontSize = 28.sp, fontWeight = FontWeight.Bold, color = Color(0xFF37474F))
+        IconButton(
+            onClick  = onBack,
+            modifier = Modifier.size(48.dp)
+        ) {
+            Icon(
+                painter            = painterResource(id = R.drawable.ic_arrow_back),
+                contentDescription = "뒤로가기",
+                tint               = Color(0xFF37474F),
+                modifier           = Modifier.size(28.dp)
+            )
         }
 
         Column(
@@ -201,55 +460,207 @@ private fun GameHud(
             horizontalAlignment   = Alignment.CenterHorizontally
         ) {
             Text(
-                text      = puzzleInfo,
-                fontSize  = 13.sp,
-                color     = Color(0xFF78909C)
+                text       = puzzleInfo,
+                fontSize   = 14.sp,
+                fontWeight = FontWeight.Medium,
+                color      = Color(0xFF78909C)
             )
             Text(
                 text       = timeStr,
-                fontSize   = 32.sp,
+                fontSize   = 24.sp,
                 fontWeight = FontWeight.Bold,
-                color      = Color(0xFF333333)
+                color      = timerColor
             )
         }
 
-        // Hint button
-        Box(contentAlignment = Alignment.TopEnd) {
-            IconButton(
-                onClick  = onHint,
-                enabled  = hintsRemaining > 0 && !isPaused
+        // 좌측 뒤로가기 버튼과 대칭을 맞추어 타이머가 정중앙에 배치되도록 하는 더미 여백
+        Spacer(modifier = Modifier.size(48.dp))
+    }
+}
+
+// ── 실패 회수 / 제한 회수 뱃지 ───────────────────────────────────────────────
+
+@Composable
+private fun FailureCountBadge(
+    failCount    : Int,
+    maxFailCount : Int
+) {
+    val bgColor = when {
+        failCount >= 8 -> Color(0xFFFFEBEE)
+        failCount >= 5 -> Color(0xFFFFF3E0)
+        else           -> Color(0xFFECEFF1)
+    }
+    val borderColor = when {
+        failCount >= 8 -> Color(0xFFEF5350)
+        failCount >= 5 -> Color(0xFFFFB74D)
+        else           -> Color(0xFFCFD8DC)
+    }
+    val textColor = when {
+        failCount >= 8 -> Color(0xFFC62828)
+        failCount >= 5 -> Color(0xFFE65100)
+        else           -> Color(0xFF37474F)
+    }
+
+    Surface(
+        shape    = RoundedCornerShape(14.dp),
+        color    = bgColor,
+        border   = BorderStroke(1.5.dp, borderColor),
+        modifier = Modifier.padding(top = 10.dp)
+    ) {
+        Row(
+            modifier              = Modifier.padding(horizontal = 16.dp, vertical = 7.dp),
+            verticalAlignment     = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.Center
+        ) {
+            Text(
+                text       = "실패 회수: ",
+                fontSize   = 15.sp,
+                fontWeight = FontWeight.Medium,
+                color      = Color(0xFF546E7A)
+            )
+            Text(
+                text       = "$failCount / $maxFailCount",
+                fontSize   = 16.sp,
+                fontWeight = FontWeight.ExtraBold,
+                color      = textColor
+            )
+        }
+    }
+}
+
+// ── 하단 컨트롤 (모두 지우기 & 힌트 보기 & 일시 정지) ─────────────────────────
+
+@Composable
+private fun GameBottomControls(
+    hintsRemaining : Int,
+    isPaused       : Boolean,
+    onClearAll     : () -> Unit,
+    onHint         : () -> Unit,
+    onPause        : () -> Unit,
+    modifier       : Modifier = Modifier
+) {
+    val hintEnabled = hintsRemaining > 0 && !isPaused
+    val clearEnabled = !isPaused
+
+    Row(
+        modifier              = modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalAlignment     = Alignment.CenterVertically
+    ) {
+        // ── 1. 모두 지우기 버튼 ─────────────────────────────────────────────
+        Surface(
+            modifier = Modifier
+                .weight(1f)
+                .height(60.dp)
+                .clip(RoundedCornerShape(18.dp))
+                .clickable(enabled = clearEnabled, onClick = onClearAll),
+            shape           = RoundedCornerShape(18.dp),
+            color           = if (clearEnabled) Color(0xFFFFEBEE) else Color(0xFFF1F1F1),
+            border          = BorderStroke(
+                width = 2.dp,
+                color = if (clearEnabled) Color(0xFFFFCDD2) else Color(0xFFE0E0E0)
+            ),
+            shadowElevation = if (clearEnabled) 3.dp else 0.dp
+        ) {
+            Row(
+                modifier              = Modifier.fillMaxSize().padding(horizontal = 6.dp),
+                verticalAlignment     = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.Center
             ) {
+                Text(text = "🗑️", fontSize = 18.sp)
+                Spacer(modifier = Modifier.width(4.dp))
                 Text(
-                    text     = "💡",
-                    fontSize = 26.sp,
-                    color    = if (hintsRemaining > 0) Color.Unspecified else Color(0xFFBDBDBD)
+                    text       = "모두 지우기",
+                    fontSize   = 13.sp,
+                    fontWeight = FontWeight.Bold,
+                    color      = if (clearEnabled) Color(0xFFC62828) else Color(0xFF9E9E9E)
                 )
             }
-            if (hintsRemaining > 0) {
+        }
+
+        // ── 2. 힌트 보기 버튼 ──────────────────────────────────────────────
+        Surface(
+            modifier = Modifier
+                .weight(1f)
+                .height(60.dp)
+                .clip(RoundedCornerShape(18.dp))
+                .clickable(enabled = hintEnabled, onClick = onHint),
+            shape           = RoundedCornerShape(18.dp),
+            color           = if (hintEnabled) Color(0xFFFFF9C4) else Color(0xFFF1F1F1),
+            border          = BorderStroke(
+                width = 2.dp,
+                color = if (hintEnabled) Color(0xFFFFB300) else Color(0xFFE0E0E0)
+            ),
+            shadowElevation = if (hintEnabled) 3.dp else 0.dp
+        ) {
+            Row(
+                modifier              = Modifier.fillMaxSize().padding(horizontal = 6.dp),
+                verticalAlignment     = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.Center
+            ) {
+                Text(text = "💡", fontSize = 18.sp)
+                Spacer(modifier = Modifier.width(4.dp))
+                Text(
+                    text       = "힌트",
+                    fontSize   = 14.sp,
+                    fontWeight = FontWeight.Bold,
+                    color      = if (hintEnabled) Color(0xFFE65100) else Color(0xFF9E9E9E)
+                )
+                Spacer(modifier = Modifier.width(4.dp))
+                // 남은 힌트 개수 뱃지
                 Box(
-                    modifier          = Modifier
-                        .offset(x = (-4).dp, y = 4.dp)
-                        .size(18.dp)
-                        .background(EasyColor, CircleShape),
-                    contentAlignment  = Alignment.Center
+                    modifier = Modifier
+                        .size(22.dp)
+                        .background(
+                            color = if (hintEnabled) Color(0xFFFF9800) else Color(0xFFBDBDBD),
+                            shape = CircleShape
+                        ),
+                    contentAlignment = Alignment.Center
                 ) {
                     Text(
-                        text      = "$hintsRemaining",
-                        fontSize  = 10.sp,
-                        color     = Color.White,
-                        fontWeight = FontWeight.Bold
+                        text       = "$hintsRemaining",
+                        fontSize   = 12.sp,
+                        fontWeight = FontWeight.ExtraBold,
+                        color      = Color.White
                     )
                 }
             }
         }
 
-        // Pause button
-        IconButton(onClick = onPause) {
-            Text(
-                text     = if (isPaused) "▶" else "⏸",
-                fontSize = 22.sp,
-                color    = Color(0xFF37474F)
-            )
+        // ── 3. 일시 정지 / 계속하기 버튼 ──────────────────────────────────────
+        val pauseBgColor     = if (isPaused) Color(0xFFE8F5E9) else Color(0xFFE3F2FD)
+        val pauseBorderColor = if (isPaused) Color(0xFF66BB6A) else Color(0xFF64B5F6)
+        val pauseTextColor   = if (isPaused) Color(0xFF2E7D32) else Color(0xFF1565C0)
+
+        Surface(
+            modifier = Modifier
+                .weight(1f)
+                .height(60.dp)
+                .clip(RoundedCornerShape(18.dp))
+                .clickable(onClick = onPause),
+            shape           = RoundedCornerShape(18.dp),
+            color           = pauseBgColor,
+            border          = BorderStroke(width = 2.dp, color = pauseBorderColor),
+            shadowElevation = 3.dp
+        ) {
+            Row(
+                modifier              = Modifier.fillMaxSize().padding(horizontal = 6.dp),
+                verticalAlignment     = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.Center
+            ) {
+                Text(
+                    text     = if (isPaused) "▶" else "⏸",
+                    fontSize = 18.sp,
+                    color    = pauseTextColor
+                )
+                Spacer(modifier = Modifier.width(4.dp))
+                Text(
+                    text       = if (isPaused) "계속하기" else "일시 정지",
+                    fontSize   = 14.sp,
+                    fontWeight = FontWeight.Bold,
+                    color      = pauseTextColor
+                )
+            }
         }
     }
 }
@@ -520,7 +931,9 @@ fun NumberPickerOverlay(
         contentAlignment  = Alignment.Center
     ) {
         Card(
-            modifier  = Modifier.clickable { /* consume */ },
+            modifier  = Modifier
+                .padding(horizontal = 24.dp)
+                .clickable { /* consume */ },
             shape     = RoundedCornerShape(24.dp),
             colors    = CardDefaults.cardColors(containerColor = Color.White),
             elevation = CardDefaults.cardElevation(10.dp)
@@ -537,17 +950,27 @@ fun NumberPickerOverlay(
                     fontWeight = FontWeight.SemiBold
                 )
 
-                val perRow = if (gridSize <= 4) 4 else if (gridSize == 6) 3 else 5
+                val perRow = when (gridSize) {
+                    4    -> 4 // 1행에 4개 (1 2 3 4)
+                    6    -> 3 // 2행에 3개씩 (1 2 3 / 4 5 6)
+                    else -> 3 // 3행에 3개씩 키패드 형태 (1 2 3 / 4 5 6 / 7 8 9)로 배치하여 찌그러짐 방지
+                }
                 val chunks = (1..gridSize).chunked(perRow)
+                val buttonSize = if (gridSize == 9) 56.dp else 60.dp
+
                 chunks.forEach { row ->
-                    Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
                         row.forEach { num ->
                             val isAvailable = num in availableNumbers
                             NumberButton(
-                                number    = num,
-                                available = isAvailable,
-                                isGuided  = isGuided,
-                                onClick   = { if (isAvailable) onNumberSelected(num) }
+                                number     = num,
+                                available  = isAvailable,
+                                isGuided   = isGuided,
+                                buttonSize = buttonSize,
+                                onClick    = { if (isAvailable) onNumberSelected(num) }
                             )
                         }
                     }
@@ -556,13 +979,14 @@ fun NumberPickerOverlay(
                 // Delete button
                 Box(
                     modifier = Modifier
-                        .size(60.dp)
+                        .size(buttonSize)
+                        .aspectRatio(1f)
                         .clip(CircleShape)
                         .background(Color(0xFFFFEBEE))
                         .clickable(onClick = onDelete),
                     contentAlignment = Alignment.Center
                 ) {
-                    Text("🗑", fontSize = 26.sp)
+                    Text("🗑", fontSize = if (gridSize == 9) 24.sp else 26.sp)
                 }
             }
         }
@@ -571,10 +995,11 @@ fun NumberPickerOverlay(
 
 @Composable
 private fun NumberButton(
-    number    : Int,
-    available : Boolean,
-    isGuided  : Boolean,
-    onClick   : () -> Unit
+    number     : Int,
+    available  : Boolean,
+    isGuided   : Boolean,
+    buttonSize : androidx.compose.ui.unit.Dp = 60.dp,
+    onClick    : () -> Unit
 ) {
     val bgColor = when {
         !isGuided -> Color(0xFFE3F2FD) // 자유 입력 모드: 산뜻한 파란색 활성화
@@ -596,7 +1021,8 @@ private fun NumberButton(
 
     Box(
         modifier = Modifier
-            .size(60.dp)
+            .size(buttonSize)
+            .aspectRatio(1f)
             .clip(CircleShape)
             .background(bgColor)
             .border(
@@ -609,7 +1035,7 @@ private fun NumberButton(
     ) {
         Text(
             text       = "$number",
-            fontSize   = 26.sp,
+            fontSize   = if (buttonSize < 60.dp) 24.sp else 26.sp,
             fontWeight = FontWeight.Bold,
             color      = textColor
         )
