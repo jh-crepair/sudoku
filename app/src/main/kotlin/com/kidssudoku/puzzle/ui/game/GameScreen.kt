@@ -115,7 +115,7 @@ fun GameScreen(
                 }
             }
 
-            // ── 게임판 하단: 실패 회수/제한 회수 정보 표시 ───────────────────
+            // ── 게임판 하단: 오류 횟수/제한 회수 정보 표시 ───────────────────
             FailureCountBadge(
                 failCount    = failCount,
                 maxFailCount = GameViewModel.MAX_FAIL_COUNT
@@ -290,7 +290,7 @@ fun GameScreen(
                                     modifier = Modifier.fillMaxWidth(),
                                     horizontalArrangement = Arrangement.SpaceBetween
                                 ) {
-                                    Text("실패 회수", fontSize = 14.sp, color = Color(0xFF78909C))
+                                    Text("오류 횟수", fontSize = 14.sp, color = Color(0xFF78909C))
                                     Text(
                                         "$failCount / ${GameViewModel.MAX_FAIL_COUNT}",
                                         fontSize   = 14.sp,
@@ -478,7 +478,7 @@ private fun GameHud(
     }
 }
 
-// ── 실패 회수 / 제한 회수 뱃지 ───────────────────────────────────────────────
+// ── 오류 횟수 / 제한 회수 뱃지 ───────────────────────────────────────────────
 
 @Composable
 private fun FailureCountBadge(
@@ -513,7 +513,7 @@ private fun FailureCountBadge(
             horizontalArrangement = Arrangement.Center
         ) {
             Text(
-                text       = "실패 회수: ",
+                text       = "오류 횟수: ",
                 fontSize   = 15.sp,
                 fontWeight = FontWeight.Medium,
                 color      = Color(0xFF546E7A)
@@ -542,19 +542,19 @@ private fun GameBottomControls(
     val hintEnabled = hintsRemaining > 0 && !isPaused
     val clearEnabled = !isPaused
 
-    Row(
-        modifier              = modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-        verticalAlignment     = Alignment.CenterVertically
+    Column(
+        modifier            = modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
     ) {
         // ── 1. 모두 지우기 버튼 ─────────────────────────────────────────────
         Surface(
             modifier = Modifier
-                .weight(1f)
-                .height(60.dp)
-                .clip(RoundedCornerShape(18.dp))
+                .fillMaxWidth()
+                .height(50.dp)
+                .clip(RoundedCornerShape(16.dp))
                 .clickable(enabled = clearEnabled, onClick = onClearAll),
-            shape           = RoundedCornerShape(18.dp),
+            shape           = RoundedCornerShape(16.dp),
             color           = if (clearEnabled) Color(0xFFFFEBEE) else Color(0xFFF1F1F1),
             border          = BorderStroke(
                 width = 2.dp,
@@ -563,15 +563,15 @@ private fun GameBottomControls(
             shadowElevation = if (clearEnabled) 3.dp else 0.dp
         ) {
             Row(
-                modifier              = Modifier.fillMaxSize().padding(horizontal = 6.dp),
+                modifier              = Modifier.fillMaxSize().padding(horizontal = 16.dp),
                 verticalAlignment     = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.Center
             ) {
                 Text(text = "🗑️", fontSize = 18.sp)
-                Spacer(modifier = Modifier.width(4.dp))
+                Spacer(modifier = Modifier.width(6.dp))
                 Text(
                     text       = "모두 지우기",
-                    fontSize   = 13.sp,
+                    fontSize   = 15.sp,
                     fontWeight = FontWeight.Bold,
                     color      = if (clearEnabled) Color(0xFFC62828) else Color(0xFF9E9E9E)
                 )
@@ -581,11 +581,11 @@ private fun GameBottomControls(
         // ── 2. 힌트 보기 버튼 ──────────────────────────────────────────────
         Surface(
             modifier = Modifier
-                .weight(1f)
-                .height(60.dp)
-                .clip(RoundedCornerShape(18.dp))
+                .fillMaxWidth()
+                .height(50.dp)
+                .clip(RoundedCornerShape(16.dp))
                 .clickable(enabled = hintEnabled, onClick = onHint),
-            shape           = RoundedCornerShape(18.dp),
+            shape           = RoundedCornerShape(16.dp),
             color           = if (hintEnabled) Color(0xFFFFF9C4) else Color(0xFFF1F1F1),
             border          = BorderStroke(
                 width = 2.dp,
@@ -594,19 +594,19 @@ private fun GameBottomControls(
             shadowElevation = if (hintEnabled) 3.dp else 0.dp
         ) {
             Row(
-                modifier              = Modifier.fillMaxSize().padding(horizontal = 6.dp),
+                modifier              = Modifier.fillMaxSize().padding(horizontal = 16.dp),
                 verticalAlignment     = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.Center
             ) {
                 Text(text = "💡", fontSize = 18.sp)
-                Spacer(modifier = Modifier.width(4.dp))
+                Spacer(modifier = Modifier.width(6.dp))
                 Text(
                     text       = "힌트",
-                    fontSize   = 14.sp,
+                    fontSize   = 15.sp,
                     fontWeight = FontWeight.Bold,
                     color      = if (hintEnabled) Color(0xFFE65100) else Color(0xFF9E9E9E)
                 )
-                Spacer(modifier = Modifier.width(4.dp))
+                Spacer(modifier = Modifier.width(6.dp))
                 // 남은 힌트 개수 뱃지
                 Box(
                     modifier = Modifier
@@ -634,17 +634,17 @@ private fun GameBottomControls(
 
         Surface(
             modifier = Modifier
-                .weight(1f)
-                .height(60.dp)
-                .clip(RoundedCornerShape(18.dp))
+                .fillMaxWidth()
+                .height(50.dp)
+                .clip(RoundedCornerShape(16.dp))
                 .clickable(onClick = onPause),
-            shape           = RoundedCornerShape(18.dp),
+            shape           = RoundedCornerShape(16.dp),
             color           = pauseBgColor,
             border          = BorderStroke(width = 2.dp, color = pauseBorderColor),
             shadowElevation = 3.dp
         ) {
             Row(
-                modifier              = Modifier.fillMaxSize().padding(horizontal = 6.dp),
+                modifier              = Modifier.fillMaxSize().padding(horizontal = 16.dp),
                 verticalAlignment     = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.Center
             ) {
@@ -653,10 +653,10 @@ private fun GameBottomControls(
                     fontSize = 18.sp,
                     color    = pauseTextColor
                 )
-                Spacer(modifier = Modifier.width(4.dp))
+                Spacer(modifier = Modifier.width(6.dp))
                 Text(
                     text       = if (isPaused) "계속하기" else "일시 정지",
-                    fontSize   = 14.sp,
+                    fontSize   = 15.sp,
                     fontWeight = FontWeight.Bold,
                     color      = pauseTextColor
                 )

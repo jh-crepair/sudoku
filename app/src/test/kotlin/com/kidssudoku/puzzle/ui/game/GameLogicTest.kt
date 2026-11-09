@@ -37,7 +37,7 @@ class GameLogicTest {
 
     @Test
     fun testMaxFailCount() {
-        // 실패 회수는 등급별 모두 10회로 제한
+        // 오류 횟수는 등급별 모두 10회로 제한
         assertEquals(10, GameViewModel.MAX_FAIL_COUNT)
     }
 }

@@ -49,8 +49,9 @@ class SoundManager(private val context: Context) {
     private val sampleRate = 22050
 
     // Pre-synthesized PCM sounds
+    private val clearTapPcm: ByteArray by lazy { generateClearTapPcm() }
     private val errorBuzzerPcm: ByteArray by lazy { generateErrorBuzzerPcm() }
-    private val fireworksPcm: ByteArray by lazy { generateFireworksPcm() }
+    private val celebrationPcm: ByteArray by lazy { generateCelebrationPcm() }
     private val gameOverPcm: ByteArray by lazy { generateGameOverPcm() }
 
     init {
@@ -59,11 +60,13 @@ class SoundManager(private val context: Context) {
         loadSound(SoundEffect.NUMBER_INPUT, "sound_pop")
         loadSound(SoundEffect.UNLOCK,       "sound_unlock")
         loadSound(SoundEffect.BUTTON_CLICK, "sound_tap")
+        loadSound(SoundEffect.PUZZLE_CLEAR, "sound_clear")
 
         // Pre-initialize lazy PCM buffers in background to avoid any first-play lag
         soundExecutor.execute {
+            clearTapPcm
             errorBuzzerPcm
-            fireworksPcm
+            celebrationPcm
             gameOverPcm
         }
     }
@@ -85,8 +88,13 @@ class SoundManager(private val context: Context) {
                 return
             }
             SoundEffect.PUZZLE_CLEAR -> {
-                // 축하 폭죽 효과음
-                playPcm(fireworksPcm)
+                // 밝은 축제 축하 효과음 (SoundPool 우선 재생, 미로딩/실패 시 PCM)
+                val soundId = soundIds[effect]
+                if (soundId != null && soundId != 0) {
+                    val streamId = soundPool.play(soundId, 0.95f, 0.95f, 1, 0, 1f)
+                    if (streamId != 0) return
+                }
+                playPcm(celebrationPcm)
                 return
             }
             SoundEffect.GAME_OVER -> {
@@ -143,6 +151,37 @@ class SoundManager(private val context: Context) {
         }
     }
 
+    private fun generateClearTapPcm(): ByteArray {
+        val durationSec = 0.16
+        val numSamples = (sampleRate * durationSec).toInt()
+        val shorts = ShortArray(numSamples)
+        val f0 = 1567.98 // G6 (맑고 청아한 크리스탈 차임)
+        val f1 = 3135.96 // 2nd harmonic
+        val f2 = 4703.94 // 3rd harmonic
+        val fSub = 783.99 // G5
+
+        for (i in 0 until numSamples) {
+            val t = i.toDouble() / sampleRate
+            val attackSamples = sampleRate * 0.0015
+            val attack = if (i < attackSamples) (i / attackSamples) else 1.0
+
+            val envMain = exp(-t * 22.0)
+            val envHigh = exp(-t * 45.0)
+            val envSub = exp(-t * 28.0)
+
+            val waveMain = sin(2 * Math.PI * f0 * t) * 0.65
+            val waveSub = sin(2 * Math.PI * fSub * t) * 0.18
+            val waveH1 = sin(2 * Math.PI * f1 * t) * 0.22
+            val waveH2 = sin(2 * Math.PI * f2 * t) * 0.08
+
+            val mixed = (waveMain * envMain + waveSub * envSub + waveH1 * envHigh + waveH2 * envHigh) * attack
+            val sampleVal = (mixed * Short.MAX_VALUE * 0.85).toInt()
+                .coerceIn(Short.MIN_VALUE.toInt(), Short.MAX_VALUE.toInt())
+            shorts[i] = sampleVal.toShort()
+        }
+        return shortsToBytes(shorts)
+    }
+
     private fun generateErrorBuzzerPcm(): ByteArray {
         val durationSec = 0.28
         val numSamples = (sampleRate * durationSec).toInt()
@@ -171,66 +210,102 @@ class SoundManager(private val context: Context) {
         return shortsToBytes(shorts)
     }
 
-    private fun generateFireworksPcm(): ByteArray {
-        val durationSec = 1.7
+    private fun generateCelebrationPcm(): ByteArray {
+        val durationSec = 2.2
         val numSamples = (sampleRate * durationSec).toInt()
-        val shorts = ShortArray(numSamples)
-        val random = Random(12345)
+        val floatSamples = FloatArray(numSamples)
 
-        // 3발의 폭죽 (발사 시간 -> 폭발 시간)
-        val fireworkTimes = listOf(
-            0.00 to 0.16,
-            0.32 to 0.50,
-            0.64 to 0.82
+        fun addBellNote(startTime: Double, freq: Double, duration: Double, amp: Float) {
+            val startIdx = (startTime * sampleRate).toInt()
+            val noteSamples = (duration * sampleRate).toInt()
+            for (i in 0 until noteSamples) {
+                val idx = startIdx + i
+                if (idx >= numSamples) break
+                val t = i.toDouble() / sampleRate
+                val attack = (t / 0.002).coerceAtMost(1.0)
+                val decay = exp(-t * (5.5 / duration))
+                val tone = sin(2 * Math.PI * freq * t) * 0.65 +
+                           sin(2 * Math.PI * freq * 2 * t) * 0.22 +
+                           sin(2 * Math.PI * freq * 3 * t) * 0.09 +
+                           sin(2 * Math.PI * freq * 4 * t) * 0.04
+                floatSamples[idx] += (tone * attack * decay * amp).toFloat()
+            }
+        }
+
+        fun addPartyPop(startTime: Double, startFreq: Double, endFreq: Double, duration: Double, amp: Float) {
+            val startIdx = (startTime * sampleRate).toInt()
+            val popSamples = (duration * sampleRate).toInt()
+            for (i in 0 until popSamples) {
+                val idx = startIdx + i
+                if (idx >= numSamples) break
+                val t = i.toDouble() / sampleRate
+                val progress = i.toDouble() / popSamples
+                val freq = startFreq + (endFreq - startFreq) * progress.pow(0.4)
+                val env = exp(-progress * 9.0)
+                val wave = sin(2 * Math.PI * freq * t)
+                val air = (Math.random() * 2.0 - 1.0) * exp(-progress * 16.0) * 0.15
+                floatSamples[idx] += ((wave * 0.85 + air) * env * amp).toFloat()
+            }
+        }
+
+        fun addSparkle(startTime: Double, freq: Double, duration: Double, amp: Float) {
+            val startIdx = (startTime * sampleRate).toInt()
+            val sparkleSamples = (duration * sampleRate).toInt()
+            for (i in 0 until sparkleSamples) {
+                val idx = startIdx + i
+                if (idx >= numSamples) break
+                val t = i.toDouble() / sampleRate
+                val attack = (t / 0.001).coerceAtMost(1.0)
+                val decay = exp(-t * 18.0)
+                val shimmer = 1.0 + 0.15 * sin(2 * Math.PI * 18 * t)
+                val wave = sin(2 * Math.PI * freq * t) * shimmer
+                floatSamples[idx] += (wave * attack * decay * amp).toFloat()
+            }
+        }
+
+        // 1. Party Poppers (경쾌하고 부드러운 팝 소리)
+        addPartyPop(0.00, 520.0, 210.0, 0.09, 0.45f)
+        addPartyPop(0.40, 680.0, 260.0, 0.08, 0.40f)
+        addPartyPop(0.85, 820.0, 320.0, 0.08, 0.35f)
+
+        // 2. 팡파르 멜로디 (도-미-솔-높은도-높은미&솔 화음)
+        addBellNote(0.02, 523.25, 0.50, 0.65f) // C5
+        addBellNote(0.14, 659.25, 0.50, 0.65f) // E5
+        addBellNote(0.26, 783.99, 0.55, 0.70f) // G5
+        addBellNote(0.38, 1046.50, 0.80, 0.75f) // C6
+        addBellNote(0.55, 1318.51, 1.10, 0.70f) // E6
+        addBellNote(0.55, 1567.98, 1.10, 0.60f) // G6
+        addBellNote(0.55, 2093.00, 1.00, 0.40f) // C7
+
+        // 3. 반짝이는 별가루 (Magical Stardust Cascades)
+        val sparkles = listOf(
+            0.70 to 2093.00,
+            0.78 to 2349.32,
+            0.86 to 2637.02,
+            0.95 to 3135.96,
+            1.04 to 2637.02,
+            1.12 to 2093.00,
+            1.20 to 2349.32,
+            1.28 to 2637.02,
+            1.38 to 3135.96,
+            1.50 to 3520.00,
+            1.65 to 4186.01
         )
+        for ((t, f) in sparkles) {
+            addSparkle(t, f, 0.35, 0.35f)
+        }
 
-        for ((launchT, burstT) in fireworkTimes) {
-            val launchSample = (launchT * sampleRate).toInt()
-            val burstSample = (burstT * sampleRate).toInt()
-            val endSample = ((burstT + 0.75) * sampleRate).toInt().coerceAtMost(numSamples)
+        var maxAmp = 0f
+        for (sample in floatSamples) {
+            val absVal = abs(sample)
+            if (absVal > maxAmp) maxAmp = absVal
+        }
+        val scale = if (maxAmp > 0f) (0.88f / maxAmp) else 1f
 
-            // 1. 발사 휘슬 소리 (rising whistle 500Hz -> 2000Hz)
-            val whistleSamples = burstSample - launchSample
-            for (i in launchSample until burstSample.coerceAtMost(numSamples)) {
-                val localT = (i - launchSample).toDouble() / whistleSamples
-                val freq = 550.0 + 1600.0 * localT * localT
-                val t = (i - launchSample).toDouble() / sampleRate
-                val amp = 0.28 * sin(Math.PI * localT)
-                val whistleWave = sin(2 * Math.PI * freq * t) * amp * Short.MAX_VALUE
-                val current = shorts[i].toInt()
-                shorts[i] = (current + whistleWave.toInt()).coerceIn(Short.MIN_VALUE.toInt(), Short.MAX_VALUE.toInt()).toShort()
-            }
-
-            // 2. 쾅! 폭발음 (저음 펀치 100Hz -> 45Hz + 화이트 노이즈 폭발)
-            val boomDuration = (0.38 * sampleRate).toInt()
-            val boomEnd = (burstSample + boomDuration).coerceAtMost(numSamples)
-            for (i in burstSample until boomEnd) {
-                val localT = (i - burstSample).toDouble() / boomDuration
-                val boomEnv = exp(-localT * 7.5)
-                val boomFreq = 95.0 - 50.0 * localT
-                val boomTone = sin(2 * Math.PI * boomFreq * (i - burstSample) / sampleRate)
-                val noise = random.nextDouble() * 2.0 - 1.0
-                val boomWave = (boomTone * 0.65 + noise * 0.6) * boomEnv * Short.MAX_VALUE * 0.85
-                val current = shorts[i].toInt()
-                shorts[i] = (current + boomWave.toInt()).coerceIn(Short.MIN_VALUE.toInt(), Short.MAX_VALUE.toInt()).toShort()
-            }
-
-            // 3. 파직파직 퍼지는 불꽃 파열음 (Crackles / Sparks)
-            for (i in burstSample until endSample) {
-                val localT = (i - burstSample).toDouble() / (endSample - burstSample)
-                val crackleEnv = exp(-localT * 3.2)
-                if (random.nextDouble() < 0.04 * (1.0 - localT)) {
-                    val popLen = (sampleRate * 0.0035).toInt()
-                    val popSign = if (random.nextBoolean()) 1.0 else -1.0
-                    for (k in 0 until popLen) {
-                        if (i + k < numSamples) {
-                            val popVal = popSign * (1.0 - k.toDouble() / popLen) * crackleEnv * Short.MAX_VALUE * 0.75
-                            val current = shorts[i + k].toInt()
-                            shorts[i + k] = (current + popVal.toInt()).coerceIn(Short.MIN_VALUE.toInt(), Short.MAX_VALUE.toInt()).toShort()
-                        }
-                    }
-                }
-            }
+        val shorts = ShortArray(numSamples)
+        for (i in 0 until numSamples) {
+            shorts[i] = (floatSamples[i] * scale * Short.MAX_VALUE).toInt()
+                .coerceIn(Short.MIN_VALUE.toInt(), Short.MAX_VALUE.toInt()).toShort()
         }
         return shortsToBytes(shorts)
     }
@@ -277,10 +352,10 @@ class SoundManager(private val context: Context) {
                     tg.startTone(ToneGenerator.TONE_PROP_ACK, 70)
                 }
                 SoundEffect.CELL_SELECT -> {
-                    tg.startTone(ToneGenerator.TONE_PROP_BEEP, 40)
+                    playPcm(clearTapPcm)
                 }
                 SoundEffect.BUTTON_CLICK -> {
-                    tg.startTone(ToneGenerator.TONE_PROP_BEEP, 40)
+                    playPcm(clearTapPcm)
                 }
                 SoundEffect.UNLOCK -> {
                     tg.startTone(ToneGenerator.TONE_PROP_PROMPT, 200)

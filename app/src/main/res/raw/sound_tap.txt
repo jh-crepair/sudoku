@@ -1,2 +1,0 @@
-// Placeholder - replace with actual OGG/WAV sound file (tap sound)
-// Place actual sound file as: app/src/main/res/raw/sound_tap.ogg
