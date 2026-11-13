@@ -8,31 +8,42 @@ import org.junit.Test
 class GameLogicTest {
 
     @Test
-    fun testDifficultyTimeLimits() {
-        // 초급은 제한 시간 5분 (300초)
-        assertEquals(300, GameViewModel.getTimeLimit("EASY"))
-        // 중급은 8분 (480초)
-        assertEquals(480, GameViewModel.getTimeLimit("MEDIUM"))
-        // 상급은 10분 (600초)
-        assertEquals(600, GameViewModel.getTimeLimit("HARD"))
+    fun testGridSizeTimeLimits() {
+        // 4단: (초,중,상급 모두 10분 = 600초)
+        assertEquals(600, GameViewModel.getTimeLimit(4))
+        assertEquals(600, GameViewModel.getTimeLimit(4, "EASY"))
+        assertEquals(600, GameViewModel.getTimeLimit(4, "MEDIUM"))
+        assertEquals(600, GameViewModel.getTimeLimit(4, "HARD"))
+
+        // 6단: (초,중,상급 모두 20분 = 1200초)
+        assertEquals(1200, GameViewModel.getTimeLimit(6))
+        assertEquals(1200, GameViewModel.getTimeLimit(6, "EASY"))
+        assertEquals(1200, GameViewModel.getTimeLimit(6, "MEDIUM"))
+        assertEquals(1200, GameViewModel.getTimeLimit(6, "HARD"))
+
+        // 9단: (초,중,상급 모두 30분 = 1800초)
+        assertEquals(1800, GameViewModel.getTimeLimit(9))
+        assertEquals(1800, GameViewModel.getTimeLimit(9, "EASY"))
+        assertEquals(1800, GameViewModel.getTimeLimit(9, "MEDIUM"))
+        assertEquals(1800, GameViewModel.getTimeLimit(9, "HARD"))
     }
 
     @Test
     fun testTimeWarningThreshold() {
-        val easyLimit = GameViewModel.getTimeLimit("EASY") // 300s
-        val warningThreshold = easyLimit * 0.2f // 60s
+        val limit4 = GameViewModel.getTimeLimit(4) // 600s (10분)
+        val warningThreshold = limit4 * 0.2f // 120s
 
-        // 240초 진행 -> 남은 시간 60초 (딱 20% 남음) -> 경고 색상 대상
-        val remainingAt240 = easyLimit - 240
-        assertTrue(remainingAt240 <= warningThreshold)
+        // 480초 진행 -> 남은 시간 120초 (딱 20% 남음) -> 경고 색상 대상
+        val remainingAt480 = limit4 - 480
+        assertTrue(remainingAt480 <= warningThreshold)
 
-        // 239초 진행 -> 남은 시간 61초 (> 20%) -> 경고 색상 아님
-        val remainingAt239 = easyLimit - 239
-        assertFalse(remainingAt239 <= warningThreshold)
+        // 479초 진행 -> 남은 시간 121초 (> 20%) -> 경고 색상 아님
+        val remainingAt479 = limit4 - 479
+        assertFalse(remainingAt479 <= warningThreshold)
 
-        // 290초 진행 -> 남은 시간 10초 (< 20%) -> 경고 색상 대상
-        val remainingAt290 = easyLimit - 290
-        assertTrue(remainingAt290 <= warningThreshold)
+        // 580초 진행 -> 남은 시간 20초 (< 20%) -> 경고 색상 대상
+        val remainingAt580 = limit4 - 580
+        assertTrue(remainingAt580 <= warningThreshold)
     }
 
     @Test

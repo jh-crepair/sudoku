@@ -39,10 +39,17 @@ class GameViewModel(
     companion object {
         const val MAX_FAIL_COUNT = 10
 
+        fun getTimeLimit(gridSize: Int, difficulty: String? = null): Int = when (gridSize) {
+            4    -> 10 * 60  // 4단: 초,중,상급 모두 10분
+            6    -> 20 * 60  // 6단: 초,중,상급 모두 20분
+            9    -> 30 * 60  // 9단: 초,중,상급 모두 30분
+            else -> 10 * 60
+        }
+
         fun getTimeLimit(difficulty: String): Int = when (difficulty) {
-            "EASY"   -> 5 * 60   // 초급 5분
-            "MEDIUM" -> 8 * 60   // 중급 8분
-            else     -> 10 * 60  // 상급 10분
+            "EASY"   -> 10 * 60
+            "MEDIUM" -> 20 * 60
+            else     -> 30 * 60
         }
     }
 
@@ -61,7 +68,7 @@ class GameViewModel(
     private val _elapsedSeconds   = MutableStateFlow(0)
     val elapsedSeconds: StateFlow<Int> = _elapsedSeconds.asStateFlow()
 
-    private val _timeLimitSeconds = MutableStateFlow(300)
+    private val _timeLimitSeconds = MutableStateFlow(600)
     val timeLimitSeconds: StateFlow<Int> = _timeLimitSeconds.asStateFlow()
 
     private val _failCount        = MutableStateFlow(0)
@@ -118,7 +125,7 @@ class GameViewModel(
             currentPuzzle = puzzle
             gridSize      = puzzle.gridSize
             val maxHints  = getMaxHints(puzzle.difficulty)
-            val limitSec  = getTimeLimit(puzzle.difficulty)
+            val limitSec  = getTimeLimit(puzzle.gridSize, puzzle.difficulty)
             _timeLimitSeconds.value = limitSec
 
             // Parse solution with org.json

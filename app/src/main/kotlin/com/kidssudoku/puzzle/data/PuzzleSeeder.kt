@@ -21,7 +21,7 @@ class PuzzleSeeder(
     private val mutex = Mutex()
 
     companion object {
-        private const val CURRENT_SEEDER_VERSION = 4
+        private const val CURRENT_SEEDER_VERSION = 5
     }
 
     suspend fun seedIfNeeded() = withContext(Dispatchers.IO) {
@@ -44,14 +44,14 @@ class PuzzleSeeder(
             // (gridSize, difficulty, count, startRevealCount, endRevealCount)
             val configs = listOf(
                 DifficultyConfig(4, "EASY",   count = 10, startReveal = 11, endReveal = 9),
-                DifficultyConfig(4, "MEDIUM", count = 10, startReveal = 8,  endReveal = 6),
-                DifficultyConfig(4, "HARD",   count = 10, startReveal = 6,  endReveal = 4),
+                DifficultyConfig(4, "MEDIUM", count = 20, startReveal = 8,  endReveal = 6),
+                DifficultyConfig(4, "HARD",   count = 30, startReveal = 6,  endReveal = 4),
                 DifficultyConfig(6, "EASY",   count = 10, startReveal = 22, endReveal = 18),
-                DifficultyConfig(6, "MEDIUM", count = 10, startReveal = 17, endReveal = 13),
-                DifficultyConfig(6, "HARD",   count = 10, startReveal = 13, endReveal = 10),
+                DifficultyConfig(6, "MEDIUM", count = 20, startReveal = 17, endReveal = 13),
+                DifficultyConfig(6, "HARD",   count = 30, startReveal = 13, endReveal = 10),
                 DifficultyConfig(9, "EASY",   count = 10, startReveal = 44, endReveal = 36),
-                DifficultyConfig(9, "MEDIUM", count = 10, startReveal = 34, endReveal = 28),
-                DifficultyConfig(9, "HARD",   count = 10, startReveal = 28, endReveal = 24)
+                DifficultyConfig(9, "MEDIUM", count = 20, startReveal = 34, endReveal = 28),
+                DifficultyConfig(9, "HARD",   count = 30, startReveal = 28, endReveal = 24)
             )
 
             var seed = 12345L
