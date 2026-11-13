@@ -127,6 +127,7 @@ fun SudokuApp(
                 GameScreen(
                     puzzleId = route.puzzleId,
                     onBack   = { backStack.removeLastOrNull() },
+                    onAbandon = { backStack.removeLastOrNull() },
                     onClear  = { puzzleId, stars, elapsed ->
                         val listRoute = backStack
                             .filterIsInstance<PuzzleListRoute>()
@@ -203,7 +204,11 @@ fun SudokuApp(
             // ── Settings ─────────────────────────────────────────────────
             entry<SettingsRoute> {
                 val vm: SettingsViewModel = viewModel(
-                    factory = SettingsViewModel.Factory(app.repository, app.gamePreferences)
+                    factory = SettingsViewModel.Factory(
+                        app.repository,
+                        app.gamePreferences,
+                        app.soundManager
+                    )
                 )
                 SettingsScreen(
                     onBack    = { backStack.removeLastOrNull() },

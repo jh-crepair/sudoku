@@ -34,7 +34,9 @@ class SudokuApplication : Application() {
         ).build()
         repository      = PuzzleRepository(database.puzzleDao(), database.progressDao())
         gamePreferences = GamePreferences(applicationContext)
-        soundManager    = SoundManager(applicationContext)
+        soundManager    = SoundManager(applicationContext).also {
+            it.setMuted(!gamePreferences.soundEnabled.value)
+        }
         puzzleSeeder    = PuzzleSeeder(database.puzzleDao(), database.progressDao(), gamePreferences)
     }
 

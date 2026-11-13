@@ -29,6 +29,7 @@ fun SettingsScreen(
     viewModel : SettingsViewModel
 ) {
     val onlyAvailableNumbers by viewModel.onlyAvailableNumbers.collectAsStateWithLifecycle()
+    val soundEnabled by viewModel.soundEnabled.collectAsStateWithLifecycle()
 
     var showDialog        by remember { mutableStateOf(false) }
     var pendingGridSize   by remember { mutableStateOf(0) }
@@ -62,7 +63,7 @@ fun SettingsScreen(
 
             // ── Gameplay guide option (Toggle Switch) ─────────────────────────
             Text(
-                text       = "🎮  게임 가이드 설정",
+                text       = "🎮  게임 설정",
                 fontSize   = 18.sp,
                 fontWeight = FontWeight.Bold,
                 color      = Color(0xFF37474F)
@@ -106,6 +107,52 @@ fun SettingsScreen(
                     Switch(
                         checked = onlyAvailableNumbers,
                         onCheckedChange = { viewModel.setOnlyAvailableNumbers(it) },
+                        colors = SwitchDefaults.colors(
+                            checkedThumbColor = Color.White,
+                            checkedTrackColor = EasyColor,
+                            uncheckedThumbColor = Color.White,
+                            uncheckedTrackColor = Color(0xFFCFD8DC),
+                            uncheckedBorderColor = Color.Transparent
+                        )
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            Surface(
+                shape = RoundedCornerShape(16.dp),
+                color = Color.White,
+                tonalElevation = 2.dp,
+                shadowElevation = 1.dp
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(16.dp))
+                        .clickable { viewModel.setSoundEnabled(!soundEnabled) }
+                        .padding(horizontal = 18.dp, vertical = 16.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "효과음 사용",
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFF263238)
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = if (soundEnabled) "게임 효과음을 재생합니다." else "게임 효과음을 재생하지 않습니다.",
+                            fontSize = 13.sp,
+                            color = if (soundEnabled) EasyColor else Color(0xFF78909C)
+                        )
+                    }
+                    Spacer(modifier = Modifier.width(16.dp))
+                    Switch(
+                        checked = soundEnabled,
+                        onCheckedChange = { viewModel.setSoundEnabled(it) },
                         colors = SwitchDefaults.colors(
                             checkedThumbColor = Color.White,
                             checkedTrackColor = EasyColor,
@@ -194,7 +241,7 @@ fun SettingsScreen(
             HorizontalDivider(color = Color(0xFFECEFF1))
             Spacer(modifier = Modifier.height(16.dp))
             Text(
-                text     = "어린이 스도쿠  v1.0.0",
+                text     = "심플 스도쿠  v1.0.0",
                 fontSize = 13.sp,
                 color    = Color(0xFFB0BEC5)
             )

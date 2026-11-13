@@ -47,13 +47,13 @@ fun HomeScreen(
             Text(text = "🧩", fontSize = 80.sp)
             Spacer(modifier = Modifier.height(8.dp))
             Text(
-                text = "어린이 스도쿠",
+                text = "심플 스도쿠",
                 fontSize = 38.sp,
                 fontWeight = FontWeight.ExtraBold,
                 color = Color(0xFF2E7D32)
             )
             Text(
-                text = "숫자 퍼즐 게임",
+                text = "누구나 즐기는 숫자 퍼즐",
                 fontSize = 18.sp,
                 color = Color(0xFF607D8B)
             )
@@ -64,7 +64,7 @@ fun HomeScreen(
             GridSizeCard(
                 emoji    = "🌱",
                 label    = "4단",
-                subtitle = "1~4 숫자 · 초등 저학년",
+                subtitle = "1~4 숫자 · 간단하게",
                 color    = EasyColor,
                 onClick  = { onGridSizeSelected(4) }
             )
@@ -72,7 +72,7 @@ fun HomeScreen(
             GridSizeCard(
                 emoji    = "🌿",
                 label    = "6단",
-                subtitle = "1~6 숫자 · 초등 중학년",
+                subtitle = "1~6 숫자 · 차근차근",
                 color    = MediumColor,
                 onClick  = { onGridSizeSelected(6) }
             )
@@ -80,7 +80,7 @@ fun HomeScreen(
             GridSizeCard(
                 emoji    = "🌳",
                 label    = "9단",
-                subtitle = "1~9 숫자 · 초등 고학년",
+                subtitle = "1~9 숫자 · 클래식 스도쿠",
                 color    = HardColor,
                 onClick  = { onGridSizeSelected(9) }
             )

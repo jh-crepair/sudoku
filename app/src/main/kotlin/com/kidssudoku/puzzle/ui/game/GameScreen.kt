@@ -25,7 +25,10 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -38,6 +41,7 @@ import com.kidssudoku.puzzle.ui.theme.*
 fun GameScreen(
     puzzleId : Int,
     onBack   : () -> Unit,
+    onAbandon: () -> Unit,
     onClear  : (puzzleId: Int, stars: Int, elapsedSeconds: Int) -> Unit,
     viewModel: GameViewModel
 ) {
@@ -57,8 +61,18 @@ fun GameScreen(
     val onlyAvailableNumbers   by viewModel.onlyAvailableNumbersAllowed.collectAsStateWithLifecycle()
     val conflictingSourceCells by viewModel.conflictingSourceCells.collectAsStateWithLifecycle()
     val conflictTrigger        by viewModel.conflictTrigger.collectAsStateWithLifecycle()
+    val hostView = LocalView.current
+
+    SideEffect {
+        hostView.keepScreenOn =
+            uiState.grid.isNotEmpty() && !isPaused && !isGameOver && !isCleared
+    }
+    DisposableEffect(hostView) {
+        onDispose { hostView.keepScreenOn = false }
+    }
 
     var showClearConfirmDialog by remember { mutableStateOf(false) }
+    var showAbandonConfirmDialog by remember { mutableStateOf(false) }
 
     LaunchedEffect(isCleared) {
         if (isCleared) {
@@ -99,6 +113,8 @@ fun GameScreen(
                     fixedCells             = uiState.fixedCells,
                     errorCells             = uiState.errorCells,
                     hintCells              = uiState.hintCells,
+                    checkCells             = uiState.checkCells,
+                    questionCells           = uiState.questionCells,
                     conflictingSourceCells = conflictingSourceCells,
                     conflictTrigger        = conflictTrigger,
                     selectedCell           = selectedCell,
@@ -123,13 +139,14 @@ fun GameScreen(
 
             Spacer(modifier = Modifier.weight(1f))
 
-            // ── 하단 컨트롤 (모두 지우기 & 힌트 보기 & 일시 정지) ─────────────
+            // ── 하단 컨트롤 ────────────────────────────────────────────────
             GameBottomControls(
                 hintsRemaining = hintsRemaining,
                 isPaused       = isPaused,
                 onClearAll     = { showClearConfirmDialog = true },
                 onHint         = { viewModel.useHint() },
-                onPause        = { viewModel.togglePause() }
+                onPause        = { viewModel.togglePause() },
+                onAbandon      = { showAbandonConfirmDialog = true }
             )
 
             Spacer(modifier = Modifier.height(20.dp))
@@ -146,8 +163,12 @@ fun GameScreen(
                     gridSize         = uiState.gridSize,
                     availableNumbers = viewModel.getSelectableNumbers(selRow, selCol),
                     isGuided         = onlyAvailableNumbers,
+                    isChecked        = selRow to selCol in uiState.checkCells,
+                    hasQuestion      = selRow to selCol in uiState.questionCells,
                     onNumberSelected = { num -> viewModel.inputNumber(selRow, selCol, num) },
                     onDelete         = { viewModel.deleteNumber(selRow, selCol) },
+                    onToggleCheck    = { viewModel.toggleCheck(selRow, selCol) },
+                    onToggleQuestion = { viewModel.toggleQuestion(selRow, selCol) },
                     onDismiss        = { viewModel.dismissNumberPicker() }
                 )
             }
@@ -202,6 +223,51 @@ fun GameScreen(
                     }
                 },
                 shape          = RoundedCornerShape(20.dp),
+                containerColor = Color.White
+            )
+        }
+
+        if (showAbandonConfirmDialog) {
+            AlertDialog(
+                onDismissRequest = { showAbandonConfirmDialog = false },
+                title = {
+                    Text(
+                        text = "게임을 포기할까요?",
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 20.sp,
+                        color = Color(0xFF263238)
+                    )
+                },
+                text = {
+                    Text(
+                        text = "진행 시간과 입력한 숫자가 모두 초기화되고 게임 목록으로 이동합니다.",
+                        fontSize = 16.sp,
+                        color = Color(0xFF455A64)
+                    )
+                },
+                confirmButton = {
+                    Button(
+                        onClick = {
+                            showAbandonConfirmDialog = false
+                            viewModel.abandonCurrentPuzzle(onAbandon)
+                        },
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = Color(0xFFE53935)
+                        ),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Text("포기", fontWeight = FontWeight.Bold, color = Color.White)
+                    }
+                },
+                dismissButton = {
+                    OutlinedButton(
+                        onClick = { showAbandonConfirmDialog = false },
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Text("계속하기", color = Color(0xFF546E7A))
+                    }
+                },
+                shape = RoundedCornerShape(20.dp),
                 containerColor = Color.White
             )
         }
@@ -537,6 +603,7 @@ private fun GameBottomControls(
     onClearAll     : () -> Unit,
     onHint         : () -> Unit,
     onPause        : () -> Unit,
+    onAbandon      : () -> Unit,
     modifier       : Modifier = Modifier
 ) {
     val hintEnabled = hintsRemaining > 0 && !isPaused
@@ -632,34 +699,69 @@ private fun GameBottomControls(
         val pauseBorderColor = if (isPaused) Color(0xFF66BB6A) else Color(0xFF64B5F6)
         val pauseTextColor   = if (isPaused) Color(0xFF2E7D32) else Color(0xFF1565C0)
 
-        Surface(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(50.dp)
-                .clip(RoundedCornerShape(16.dp))
-                .clickable(onClick = onPause),
-            shape           = RoundedCornerShape(16.dp),
-            color           = pauseBgColor,
-            border          = BorderStroke(width = 2.dp, color = pauseBorderColor),
-            shadowElevation = 3.dp
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            Row(
-                modifier              = Modifier.fillMaxSize().padding(horizontal = 16.dp),
-                verticalAlignment     = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.Center
+            Surface(
+                modifier = Modifier
+                    .weight(1f)
+                    .height(50.dp)
+                    .clip(RoundedCornerShape(16.dp))
+                    .clickable(onClick = onPause),
+                shape           = RoundedCornerShape(16.dp),
+                color           = pauseBgColor,
+                border          = BorderStroke(width = 2.dp, color = pauseBorderColor),
+                shadowElevation = 3.dp
             ) {
-                Text(
-                    text     = if (isPaused) "▶" else "⏸",
-                    fontSize = 18.sp,
-                    color    = pauseTextColor
-                )
-                Spacer(modifier = Modifier.width(6.dp))
-                Text(
-                    text       = if (isPaused) "계속하기" else "일시 정지",
-                    fontSize   = 15.sp,
-                    fontWeight = FontWeight.Bold,
-                    color      = pauseTextColor
-                )
+                Row(
+                    modifier              = Modifier.fillMaxSize().padding(horizontal = 8.dp),
+                    verticalAlignment     = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.Center
+                ) {
+                    Text(
+                        text     = if (isPaused) "▶" else "⏸",
+                        fontSize = 18.sp,
+                        color    = pauseTextColor
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(
+                        text       = if (isPaused) "계속하기" else "일시 정지",
+                        fontSize   = 15.sp,
+                        fontWeight = FontWeight.Bold,
+                        color      = pauseTextColor
+                    )
+                }
+            }
+
+            Surface(
+                modifier = Modifier
+                    .weight(1f)
+                    .height(50.dp)
+                    .clip(RoundedCornerShape(16.dp))
+                    .clickable(enabled = !isPaused, onClick = onAbandon),
+                shape = RoundedCornerShape(16.dp),
+                color = if (isPaused) Color(0xFFF1F1F1) else Color(0xFFFFEBEE),
+                border = BorderStroke(
+                    width = 2.dp,
+                    color = if (isPaused) Color(0xFFE0E0E0) else Color(0xFFFFCDD2)
+                ),
+                shadowElevation = if (isPaused) 0.dp else 3.dp
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxSize().padding(horizontal = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.Center
+                ) {
+                    Text("🚪", fontSize = 18.sp)
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(
+                        text = "포기",
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = if (isPaused) Color(0xFF9E9E9E) else Color(0xFFC62828)
+                    )
+                }
             }
         }
     }
@@ -674,6 +776,8 @@ fun SudokuGrid(
     fixedCells             : Set<Pair<Int, Int>>,
     errorCells             : Set<Pair<Int, Int>>,
     hintCells              : Set<Pair<Int, Int>>,
+    checkCells             : Set<Pair<Int, Int>>,
+    questionCells          : Set<Pair<Int, Int>>,
     conflictingSourceCells : Set<Pair<Int, Int>>,
     conflictTrigger        : Long,
     selectedCell           : Pair<Int, Int>?,
@@ -824,11 +928,27 @@ fun SudokuGrid(
                             )
                         }
 
-                        // 오답 입력 셀: 상단 빨간 점 인디케이터
+                        if (row to col in checkCells) {
+                            CellMarker(
+                                text = "✓",
+                                color = Color(0xFF2E7D32),
+                                modifier = Modifier.align(Alignment.TopStart)
+                            )
+                        }
+
+                        if (row to col in questionCells) {
+                            CellMarker(
+                                text = "?",
+                                color = Color(0xFFEF6C00),
+                                modifier = Modifier.align(Alignment.TopEnd)
+                            )
+                        }
+
+                        // 오답 입력 셀: 하단 빨간 점 인디케이터
                         if (isError && value != 0) {
                             Box(
                                 modifier = Modifier
-                                    .align(Alignment.TopEnd)
+                                    .align(Alignment.BottomEnd)
                                     .padding(3.dp)
                                     .size(6.dp)
                                     .background(ErrorColor, CircleShape)
@@ -838,6 +958,29 @@ fun SudokuGrid(
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun CellMarker(
+    text: String,
+    color: Color,
+    modifier: Modifier = Modifier
+) {
+    Box(
+        modifier = modifier
+            .padding(2.dp)
+            .size(14.dp)
+            .background(Color.White.copy(alpha = 0.9f), CircleShape),
+        contentAlignment = Alignment.Center
+    ) {
+        Text(
+            text = text,
+            color = color,
+            fontSize = 10.sp,
+            fontWeight = FontWeight.ExtraBold,
+            lineHeight = 10.sp
+        )
     }
 }
 
@@ -919,8 +1062,12 @@ fun NumberPickerOverlay(
     gridSize         : Int,
     availableNumbers : Set<Int>,
     isGuided         : Boolean,
+    isChecked        : Boolean,
+    hasQuestion      : Boolean,
     onNumberSelected : (Int) -> Unit,
     onDelete         : () -> Unit,
+    onToggleCheck    : () -> Unit,
+    onToggleQuestion : () -> Unit,
     onDismiss        : () -> Unit
 ) {
     Box(
@@ -976,20 +1123,85 @@ fun NumberPickerOverlay(
                     }
                 }
 
-                // Delete button
-                Box(
-                    modifier = Modifier
-                        .size(buttonSize)
-                        .aspectRatio(1f)
-                        .clip(CircleShape)
-                        .background(Color(0xFFFFEBEE))
-                        .clickable(onClick = onDelete),
-                    contentAlignment = Alignment.Center
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text("🗑", fontSize = if (gridSize == 9) 24.sp else 26.sp)
+                    MarkerActionButton(
+                        text = "✓",
+                        description = "체크 표시 전환",
+                        active = isChecked,
+                        activeColor = Color(0xFF2E7D32),
+                        buttonSize = buttonSize,
+                        onClick = onToggleCheck
+                    )
+                    MarkerActionButton(
+                        text = "🗑",
+                        description = "숫자 지우기",
+                        active = false,
+                        activeColor = Color(0xFFC62828),
+                        backgroundColor = Color(0xFFFFEBEE),
+                        buttonSize = buttonSize,
+                        fontSize = if (gridSize == 9) 24.sp else 26.sp,
+                        onClick = onDelete
+                    )
+                    MarkerActionButton(
+                        text = "?",
+                        description = "물음표 표시 전환",
+                        active = hasQuestion,
+                        activeColor = Color(0xFFEF6C00),
+                        buttonSize = buttonSize,
+                        onClick = onToggleQuestion
+                    )
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun MarkerActionButton(
+    text: String,
+    description: String,
+    active: Boolean,
+    activeColor: Color,
+    buttonSize: androidx.compose.ui.unit.Dp,
+    backgroundColor: Color = activeColor.copy(alpha = 0.12f),
+    fontSize: androidx.compose.ui.unit.TextUnit = 28.sp,
+    enabled: Boolean = true,
+    onClick: () -> Unit
+) {
+    val buttonColor = if (enabled) activeColor else Color(0xFF9E9E9E)
+    Box(
+        modifier = Modifier
+            .size(buttonSize)
+            .clip(CircleShape)
+            .background(
+                when {
+                    !enabled -> Color(0xFFF1F1F1)
+                    active -> activeColor.copy(alpha = 0.18f)
+                    else -> backgroundColor
+                }
+            )
+            .border(
+                width = if (active && enabled) 2.dp else 1.dp,
+                color = if (enabled) {
+                    if (active) activeColor else activeColor.copy(alpha = 0.35f)
+                } else {
+                    Color(0xFFE0E0E0)
+                },
+                shape = CircleShape
+            )
+            .clickable(enabled = enabled, onClick = onClick)
+            .semantics { contentDescription = description },
+        contentAlignment = Alignment.Center
+    ) {
+        Text(
+            text = text,
+            color = buttonColor,
+            fontSize = fontSize,
+            fontWeight = FontWeight.Bold
+        )
     }
 }
 

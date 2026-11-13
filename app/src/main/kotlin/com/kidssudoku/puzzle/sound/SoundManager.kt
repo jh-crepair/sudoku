@@ -36,6 +36,7 @@ class SoundManager(private val context: Context) {
         .build()
 
     private val soundIds = mutableMapOf<SoundEffect, Int>()
+    @Volatile
     private var isMuted = false
 
     private val toneGenerator: ToneGenerator? = try {
@@ -60,7 +61,6 @@ class SoundManager(private val context: Context) {
         loadSound(SoundEffect.NUMBER_INPUT, "sound_pop")
         loadSound(SoundEffect.UNLOCK,       "sound_unlock")
         loadSound(SoundEffect.BUTTON_CLICK, "sound_tap")
-        loadSound(SoundEffect.PUZZLE_CLEAR, "sound_clear")
 
         // Pre-initialize lazy PCM buffers in background to avoid any first-play lag
         soundExecutor.execute {
@@ -87,13 +87,8 @@ class SoundManager(private val context: Context) {
                 playPcm(errorBuzzerPcm)
                 return
             }
+
             SoundEffect.PUZZLE_CLEAR -> {
-                // 밝은 축제 축하 효과음 (SoundPool 우선 재생, 미로딩/실패 시 PCM)
-                val soundId = soundIds[effect]
-                if (soundId != null && soundId != 0) {
-                    val streamId = soundPool.play(soundId, 0.95f, 0.95f, 1, 0, 1f)
-                    if (streamId != 0) return
-                }
                 playPcm(fireworksPcm)
                 return
             }
@@ -283,6 +278,32 @@ class SoundManager(private val context: Context) {
             }
         }
 
+        fun addCrowdCheer(startTime: Double, duration: Double, startFreq: Double, endFreq: Double, amp: Float) {
+            val startIdx = (startTime * sampleRate).toInt()
+            val nSamples = (duration * sampleRate).toInt()
+            var phase = 0.0
+            for (i in 0 until nSamples) {
+                val idx = startIdx + i
+                if (idx >= numSamples) break
+                val t = i.toDouble() / sampleRate
+                val progress = i.toDouble() / nSamples
+                val vibrato = sin(2 * Math.PI * 5.2 * t) * 7.0
+                val frequency = startFreq + (endFreq - startFreq) * progress + vibrato
+                phase += 2 * Math.PI * frequency / sampleRate
+
+                val voiced = sin(phase) * 0.45 +
+                    sin(phase * 2.0) * 0.38 +
+                    sin(phase * 3.0) * 0.26 +
+                    sin(phase * 4.0) * 0.16
+                val envelope = minOf(
+                    (progress / 0.08).coerceIn(0.0, 1.0),
+                    ((1.0 - progress) / 0.16).coerceIn(0.0, 1.0)
+                )
+                val breath = (rng.nextDouble() * 2.0 - 1.0) * 0.10
+                floatSamples[idx] += ((voiced + breath) * envelope * amp).toFloat()
+            }
+        }
+
         addLaunch(0.00, 0.35, 450.0, 1900.0, 0.42f)
         addFireworkExplosion(0.35, 80.0, 0.85f)
 
@@ -292,6 +313,12 @@ class SoundManager(private val context: Context) {
         addLaunch(0.78, 0.42, 380.0, 2500.0, 0.55f)
         addFireworkExplosion(1.20, 68.0, 1.00f)
         addFireworkExplosion(1.36, 85.0, 0.70f)
+
+        addCrowdCheer(0.95, 1.65, 230.0, 360.0, 0.28f)
+        addCrowdCheer(1.08, 1.50, 290.0, 420.0, 0.24f)
+        addCrowdCheer(1.28, 1.35, 190.0, 310.0, 0.22f)
+        addCrowdCheer(1.48, 1.25, 340.0, 460.0, 0.20f)
+        addCrowdCheer(1.72, 1.05, 260.0, 390.0, 0.18f)
 
         var maxAmp = 0f
         for (sample in floatSamples) {

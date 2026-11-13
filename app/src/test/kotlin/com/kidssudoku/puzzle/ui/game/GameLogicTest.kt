@@ -21,11 +21,11 @@ class GameLogicTest {
         assertEquals(1200, GameViewModel.getTimeLimit(6, "MEDIUM"))
         assertEquals(1200, GameViewModel.getTimeLimit(6, "HARD"))
 
-        // 9단: (초,중,상급 모두 30분 = 1800초)
+        // 9단: 초급/중급 30분, 상급 50분
         assertEquals(1800, GameViewModel.getTimeLimit(9))
         assertEquals(1800, GameViewModel.getTimeLimit(9, "EASY"))
         assertEquals(1800, GameViewModel.getTimeLimit(9, "MEDIUM"))
-        assertEquals(1800, GameViewModel.getTimeLimit(9, "HARD"))
+        assertEquals(3000, GameViewModel.getTimeLimit(9, "HARD"))
     }
 
     @Test
@@ -50,5 +50,20 @@ class GameLogicTest {
     fun testMaxFailCount() {
         // 오류 횟수는 등급별 모두 10회로 제한
         assertEquals(10, GameViewModel.MAX_FAIL_COUNT)
+    }
+
+    @Test
+    fun testCellMarkersCanBeSelectedBeforeNumberAndAreMutuallyExclusive() {
+        val cell = 2 to 3
+        val checks = mutableSetOf<Pair<Int, Int>>()
+        val questions = mutableSetOf<Pair<Int, Int>>()
+
+        assertTrue(toggleCellMarker(cell, checks, questions))
+        assertTrue(cell in checks)
+        assertTrue(toggleCellMarker(cell, questions, checks))
+        assertTrue(checks.isEmpty())
+        assertTrue(cell in questions)
+        assertTrue(toggleCellMarker(cell, questions, checks))
+        assertTrue(questions.isEmpty())
     }
 }

@@ -12,12 +12,27 @@ import com.kidssudoku.puzzle.sound.SoundEffect
 import com.kidssudoku.puzzle.sound.SoundManager
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.*
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import org.json.JSONArray
 import org.json.JSONObject
 
 enum class GameOverReason {
     TIME_OVER,
     MISTAKES_EXCEEDED
+}
+
+internal fun toggleCellMarker(
+    cell: Pair<Int, Int>,
+    markers: MutableSet<Pair<Int, Int>>,
+    oppositeMarkers: MutableSet<Pair<Int, Int>>
+): Boolean {
+    if (!markers.add(cell)) {
+        markers.remove(cell)
+    } else {
+        oppositeMarkers.remove(cell)
+    }
+    return true
 }
 
 data class GameUiState(
@@ -27,6 +42,8 @@ data class GameUiState(
     val fixedCells : Set<Pair<Int, Int>>     = emptySet(),
     val errorCells : Set<Pair<Int, Int>>     = emptySet(),
     val hintCells  : Set<Pair<Int, Int>>     = emptySet(),
+    val checkCells : Set<Pair<Int, Int>>     = emptySet(),
+    val questionCells: Set<Pair<Int, Int>>   = emptySet(),
     val solution   : List<Int>               = emptyList()
 )
 
@@ -39,10 +56,11 @@ class GameViewModel(
     companion object {
         const val MAX_FAIL_COUNT = 10
 
-        fun getTimeLimit(gridSize: Int, difficulty: String? = null): Int = when (gridSize) {
-            4    -> 10 * 60  // 4단: 초,중,상급 모두 10분
-            6    -> 20 * 60  // 6단: 초,중,상급 모두 20분
-            9    -> 30 * 60  // 9단: 초,중,상급 모두 30분
+        fun getTimeLimit(gridSize: Int, difficulty: String? = null): Int = when {
+            gridSize == 9 && difficulty == "HARD" -> 50 * 60
+            gridSize == 4 -> 10 * 60
+            gridSize == 6 -> 20 * 60
+            gridSize == 9 -> 30 * 60
             else -> 10 * 60
         }
 
@@ -99,14 +117,21 @@ class GameViewModel(
     private var currentPuzzle : Puzzle?                        = null
     private var timerJob      : Job?                           = null
     private var currentGrid   : MutableList<MutableList<Int>>  = mutableListOf()
+    private val checkCells    = mutableSetOf<Pair<Int, Int>>()
+    private val questionCells = mutableSetOf<Pair<Int, Int>>()
+    private val progressMutex = Mutex()
     private var puzzleId      : Int                            = -1
     private var gridSize      : Int                            = 9
+    private var isAbandoning  : Boolean                        = false
+    private var isResettingFailedGame = false
 
     // ── Load ─────────────────────────────────────────────────────────────────
 
     fun loadPuzzle(id: Int) {
         timerJob?.cancel()
         this.puzzleId = id
+        isAbandoning = false
+        isResettingFailedGame = false
         _isCleared.value                = false
         _isPaused.value                 = false
         _isGameOver.value               = false
@@ -118,13 +143,15 @@ class GameViewModel(
         _hintsRemaining.value           = 3
         _conflictingSourceCells.value   = emptySet()
         _conflictTrigger.value          = 0L
-        _uiState.value                  = GameUiState()
+        checkCells.clear()
+        questionCells.clear()
+        _uiState.value = GameUiState()
 
         viewModelScope.launch {
             val puzzle = repository.getPuzzleById(id) ?: return@launch
             currentPuzzle = puzzle
             gridSize      = puzzle.gridSize
-            val maxHints  = getMaxHints(puzzle.difficulty)
+            val maxHints  = getMaxHints()
             val limitSec  = getTimeLimit(puzzle.gridSize, puzzle.difficulty)
             _timeLimitSeconds.value = limitSec
 
@@ -159,13 +186,26 @@ class GameViewModel(
                 // Restore in-progress state
                 if (savedProgress.currentState.isNotEmpty()) {
                     runCatching {
-                        val saved = JSONArray(savedProgress.currentState)
+                        val savedState = savedProgress.currentState.trim()
+                        val saved = if (savedState.startsWith("{")) {
+                            val stateObject = JSONObject(savedState)
+                            val savedGrid = stateObject.getJSONArray("grid")
+                            restoreCellMarkers(stateObject, "checks", checkCells, fixedCells)
+                            restoreCellMarkers(stateObject, "questions", questionCells, fixedCells)
+                            savedGrid
+                        } else {
+                            JSONArray(savedState)
+                        }
                         for (idx in 0 until saved.length()) {
                             val r = idx / gridSize
                             val c = idx % gridSize
                             if (r to c !in fixedCells) {
                                 currentGrid[r][c] = saved.getInt(idx)
                             }
+                        }
+                        checkCells.removeAll { currentGrid[it.first][it.second] == 0 }
+                        questionCells.removeAll {
+                            currentGrid[it.first][it.second] == 0 || it in checkCells
                         }
                     }
                 }
@@ -213,16 +253,38 @@ class GameViewModel(
     }
 
     private fun triggerGameOver(reason: GameOverReason) {
+        if (_isGameOver.value) return
         timerJob?.cancel()
         _isGameOver.value = true
         _gameOverReason.value = reason
+        _elapsedSeconds.value = 0
+        _hintsRemaining.value = getMaxHints()
         _showNumberPicker.value = false
         _selectedCell.value = null
+        _conflictingSourceCells.value = emptySet()
+        checkCells.clear()
+        questionCells.clear()
+        val fixed = _uiState.value.fixedCells
+        for (row in 0 until gridSize) {
+            for (col in 0 until gridSize) {
+                if (row to col !in fixed) currentGrid[row][col] = 0
+            }
+        }
+        refreshState(extraHintCells = emptySet())
+        isResettingFailedGame = true
+        viewModelScope.launch {
+            progressMutex.withLock {
+                repository.resetPuzzlePlayState(puzzleId)
+            }
+            isResettingFailedGame = false
+        }
         soundManager.play(SoundEffect.GAME_OVER)
     }
 
     fun restartCurrentPuzzle() {
         val puzzle = currentPuzzle ?: return
+        isAbandoning = false
+        isResettingFailedGame = false
         val fixed = _uiState.value.fixedCells
         for (r in 0 until gridSize) {
             for (c in 0 until gridSize) {
@@ -233,24 +295,28 @@ class GameViewModel(
         }
         _elapsedSeconds.value = 0
         _failCount.value = 0
-        _hintsRemaining.value = getMaxHints(puzzle.difficulty)
+        _hintsRemaining.value = getMaxHints()
         _isGameOver.value = false
         _gameOverReason.value = null
         _isPaused.value = false
         _isCleared.value = false
         _conflictingSourceCells.value = emptySet()
+        checkCells.clear()
+        questionCells.clear()
         _selectedCell.value = null
         _showNumberPicker.value = false
 
         viewModelScope.launch {
-            repository.resetPuzzlePlayState(puzzleId)
+            progressMutex.withLock {
+                repository.resetPuzzlePlayState(puzzleId)
+            }
         }
         refreshState()
         startTimer()
     }
 
     fun clearAllUserInput() {
-        if (_isGameOver.value || _isCleared.value) return
+        if (_isGameOver.value || _isCleared.value || isAbandoning) return
         val fixed = _uiState.value.fixedCells
         for (r in 0 until gridSize) {
             for (c in 0 until gridSize) {
@@ -259,6 +325,8 @@ class GameViewModel(
                 }
             }
         }
+        checkCells.clear()
+        questionCells.clear()
         _conflictingSourceCells.value = emptySet()
         _selectedCell.value = null
         _showNumberPicker.value = false
@@ -267,8 +335,38 @@ class GameViewModel(
         saveProgress()
     }
 
+    fun abandonCurrentPuzzle(onComplete: () -> Unit) {
+        if (isAbandoning) return
+        isAbandoning = true
+        timerJob?.cancel()
+        _elapsedSeconds.value = 0
+        _failCount.value = 0
+        _hintsRemaining.value = 3
+        _isPaused.value = false
+        checkCells.clear()
+        questionCells.clear()
+        _conflictingSourceCells.value = emptySet()
+        _selectedCell.value = null
+        _showNumberPicker.value = false
+
+        val fixed = _uiState.value.fixedCells
+        for (row in 0 until gridSize) {
+            for (col in 0 until gridSize) {
+                if (row to col !in fixed) currentGrid[row][col] = 0
+            }
+        }
+        refreshState()
+
+        viewModelScope.launch {
+            progressMutex.withLock {
+                repository.resetPuzzlePlayState(puzzleId)
+            }
+            onComplete()
+        }
+    }
+
     fun togglePause() {
-        if (_isGameOver.value || _isCleared.value) return
+        if (_isGameOver.value || _isCleared.value || isAbandoning) return
         _isPaused.value = !_isPaused.value
         soundManager.play(SoundEffect.BUTTON_CLICK)
         if (_isPaused.value) saveProgress()
@@ -277,7 +375,7 @@ class GameViewModel(
     // ── Cell interaction ──────────────────────────────────────────────────────
 
     fun onCellClick(row: Int, col: Int) {
-        if (_isGameOver.value || _isCleared.value || _isPaused.value) return
+        if (_isGameOver.value || _isCleared.value || _isPaused.value || isAbandoning) return
         val state = _uiState.value
         if (row to col in state.fixedCells) {
             _selectedCell.value = null
@@ -288,7 +386,7 @@ class GameViewModel(
         // 셀을 클릭할 때에는 물결 효과를 출력하지 않음 (숫자 선택 팝업에서 선택 시에만 출력)
         _conflictingSourceCells.value = emptySet()
 
-        soundManager.play(SoundEffect.CELL_SELECT)
+        soundManager.play(SoundEffect.NUMBER_INPUT)
         _selectedCell.value     = row to col
         _showNumberPicker.value = true
     }
@@ -296,6 +394,51 @@ class GameViewModel(
     fun dismissNumberPicker() {
         _showNumberPicker.value = false
         _selectedCell.value     = null
+    }
+
+    fun toggleCheck(row: Int, col: Int) {
+        if (!canMarkCell(row, col)) return
+        val hasNumber = currentGrid[row][col] != 0
+        toggleCellMarker(row to col, checkCells, questionCells)
+        if (hasNumber) dismissNumberPicker()
+        refreshState()
+        saveProgress()
+    }
+
+    fun toggleQuestion(row: Int, col: Int) {
+        if (!canMarkCell(row, col)) return
+        val hasNumber = currentGrid[row][col] != 0
+        toggleCellMarker(row to col, questionCells, checkCells)
+        if (hasNumber) dismissNumberPicker()
+        refreshState()
+        saveProgress()
+    }
+
+    private fun canMarkCell(row: Int, col: Int): Boolean {
+        return row in 0 until gridSize &&
+            col in 0 until gridSize &&
+            !_isGameOver.value &&
+            !_isCleared.value &&
+            !_isPaused.value &&
+            !isAbandoning &&
+            row to col == _selectedCell.value &&
+            row to col !in _uiState.value.fixedCells
+    }
+
+    private fun restoreCellMarkers(
+        state: JSONObject,
+        key: String,
+        target: MutableSet<Pair<Int, Int>>,
+        fixedCells: Set<Pair<Int, Int>>
+    ) {
+        val cells = state.optJSONArray(key) ?: return
+        for (index in 0 until cells.length()) {
+            val cellIndex = cells.optInt(index, -1)
+            if (cellIndex in 0 until gridSize * gridSize) {
+                val cell = (cellIndex / gridSize) to (cellIndex % gridSize)
+                if (cell !in fixedCells) target.add(cell)
+            }
+        }
     }
 
     // ── Numbers ───────────────────────────────────────────────────────────────
@@ -364,7 +507,7 @@ class GameViewModel(
     }
 
     fun inputNumber(row: Int, col: Int, num: Int) {
-        if (_isGameOver.value || _isCleared.value) return
+        if (_isGameOver.value || _isCleared.value || isAbandoning) return
         val state = _uiState.value
         if (row to col in state.fixedCells) return
 
@@ -386,7 +529,7 @@ class GameViewModel(
                 return
             }
         } else {
-            soundManager.play(SoundEffect.NUMBER_INPUT)
+            soundManager.play(SoundEffect.CELL_SELECT)
             _conflictingSourceCells.value = emptySet()
         }
 
@@ -403,11 +546,13 @@ class GameViewModel(
     }
 
     fun deleteNumber(row: Int, col: Int) {
-        if (_isGameOver.value || _isCleared.value) return
+        if (_isGameOver.value || _isCleared.value || isAbandoning) return
         val state = _uiState.value
         if (row to col in state.fixedCells) return
         soundManager.play(SoundEffect.BUTTON_CLICK)
         currentGrid[row][col] = 0
+        checkCells.remove(row to col)
+        questionCells.remove(row to col)
         _conflictingSourceCells.value = emptySet()
         _showNumberPicker.value = false
         _selectedCell.value     = null
@@ -418,7 +563,7 @@ class GameViewModel(
     // ── Hint ──────────────────────────────────────────────────────────────────
 
     fun useHint() {
-        if (_isGameOver.value || _isCleared.value || _isPaused.value) return
+        if (_isGameOver.value || _isCleared.value || _isPaused.value || isAbandoning) return
         if (_hintsRemaining.value <= 0) return
         val state    = _uiState.value
         val empties  = mutableListOf<Pair<Int, Int>>()
@@ -469,7 +614,9 @@ class GameViewModel(
         _uiState.value = state.copy(
             grid       = currentGrid.map { it.toList() },
             errorCells = errors,
-            hintCells  = extraHintCells ?: state.hintCells
+            hintCells  = extraHintCells ?: state.hintCells,
+            checkCells = checkCells.toSet(),
+            questionCells = questionCells.toSet()
         )
     }
 
@@ -484,11 +631,7 @@ class GameViewModel(
         return true
     }
 
-    private fun getMaxHints(difficulty: String): Int = when (difficulty) {
-        "EASY"   -> 3
-        "MEDIUM" -> 2
-        else     -> 1
-    }
+    private fun getMaxHints(): Int = 3
 
     private fun onPuzzleSolved() {
         timerJob?.cancel()
@@ -497,7 +640,7 @@ class GameViewModel(
         viewModelScope.launch {
             val stars   = calculateStars()
             val puzzle  = currentPuzzle ?: return@launch
-            val maxH    = getMaxHints(puzzle.difficulty)
+            val maxH    = getMaxHints()
             val existing = repository.getProgress(puzzleId).first()
             repository.saveProgress(
                 (existing ?: Progress(puzzleId = puzzleId)).copy(
@@ -553,31 +696,45 @@ class GameViewModel(
     // ── Persistence ───────────────────────────────────────────────────────────
 
     private fun saveProgress() {
+        if (isAbandoning || isResettingFailedGame || _isGameOver.value) return
         viewModelScope.launch {
-            val jsonArray = JSONArray()
-            for (r in 0 until gridSize) {
-                for (c in 0 until gridSize) {
-                    jsonArray.put(currentGrid[r][c])
+            progressMutex.withLock {
+                if (isAbandoning || isResettingFailedGame || _isGameOver.value) return@withLock
+                val jsonArray = JSONArray()
+                for (r in 0 until gridSize) {
+                    for (c in 0 until gridSize) {
+                        jsonArray.put(currentGrid[r][c])
+                    }
                 }
-            }
-            val maxH = currentPuzzle?.let { getMaxHints(it.difficulty) } ?: 3
-            val existing = repository.getProgress(puzzleId).first()
-            repository.saveProgress(
-                (existing ?: Progress(puzzleId = puzzleId)).copy(
-                    status        = PuzzleStatus.UNLOCKED.name,
-                    hintUsedCount = (maxH - _hintsRemaining.value).coerceAtLeast(0),
-                    elapsedSeconds = _elapsedSeconds.value,
-                    currentState  = jsonArray.toString(),
-                    updatedAt     = System.currentTimeMillis()
+                val stateObject = JSONObject().put("grid", jsonArray)
+                stateObject.put("checks", markerIndices(checkCells))
+                stateObject.put("questions", markerIndices(questionCells))
+                val maxH = getMaxHints()
+                val existing = repository.getProgress(puzzleId).first()
+                if (isAbandoning || isResettingFailedGame || _isGameOver.value) return@withLock
+                repository.saveProgress(
+                    (existing ?: Progress(puzzleId = puzzleId)).copy(
+                        status        = PuzzleStatus.UNLOCKED.name,
+                        hintUsedCount = (maxH - _hintsRemaining.value).coerceAtLeast(0),
+                        elapsedSeconds = _elapsedSeconds.value,
+                        currentState  = stateObject.toString(),
+                        updatedAt     = System.currentTimeMillis()
+                    )
                 )
-            )
+            }
         }
+    }
+
+    private fun markerIndices(cells: Set<Pair<Int, Int>>): JSONArray {
+        val indices = JSONArray()
+        cells.forEach { (row, col) -> indices.put(row * gridSize + col) }
+        return indices
     }
 
     override fun onCleared() {
         super.onCleared()
         timerJob?.cancel()
-        if (!_isCleared.value) saveProgress()
+        if (!_isCleared.value && !_isGameOver.value && !isAbandoning) saveProgress()
     }
 
     // ── Factory ───────────────────────────────────────────────────────────────

@@ -16,9 +16,19 @@ class GamePreferences(context: Context) {
     )
     val onlyAvailableNumbers: StateFlow<Boolean> = _onlyAvailableNumbers.asStateFlow()
 
+    private val _soundEnabled = MutableStateFlow(
+        prefs.getBoolean(KEY_SOUND_ENABLED, true)
+    )
+    val soundEnabled: StateFlow<Boolean> = _soundEnabled.asStateFlow()
+
     fun setOnlyAvailableNumbers(enabled: Boolean) {
         prefs.edit().putBoolean(KEY_ONLY_AVAILABLE_NUMBERS, enabled).apply()
         _onlyAvailableNumbers.value = enabled
+    }
+
+    fun setSoundEnabled(enabled: Boolean) {
+        prefs.edit().putBoolean(KEY_SOUND_ENABLED, enabled).apply()
+        _soundEnabled.value = enabled
     }
 
     var seederVersion: Int
@@ -27,6 +37,7 @@ class GamePreferences(context: Context) {
 
     companion object {
         private const val KEY_ONLY_AVAILABLE_NUMBERS = "only_available_numbers_v2"
+        private const val KEY_SOUND_ENABLED = "sound_enabled"
         private const val KEY_SEEDER_VERSION = "seeder_version"
     }
 }
