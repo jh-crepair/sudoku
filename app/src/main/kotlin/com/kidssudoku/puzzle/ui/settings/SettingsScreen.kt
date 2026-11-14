@@ -241,7 +241,7 @@ fun SettingsScreen(
             HorizontalDivider(color = Color(0xFFECEFF1))
             Spacer(modifier = Modifier.height(16.dp))
             Text(
-                text     = "심플 스도쿠  v1.0.0",
+                text     = "체리의 스도쿠  v1.0.0",
                 fontSize = 13.sp,
                 color    = Color(0xFFB0BEC5)
             )

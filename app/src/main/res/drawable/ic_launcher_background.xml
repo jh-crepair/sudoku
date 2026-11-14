@@ -4,18 +4,18 @@
     android:height="108dp"
     android:viewportWidth="108"
     android:viewportHeight="108">
-    <!-- Soft kid-friendly gradient background -->
     <path
-        android:fillColor="#E8F5E9"
+        android:fillColor="#FFF1F3"
         android:pathData="M0,0 L108,0 L108,108 L0,108 Z" />
     <path
-        android:fillColor="#C8E6C9"
-        android:pathData="M0,0 L108,0 L108,72 L0,108 Z" />
+        android:fillColor="#FFE1E6"
+        android:pathData="M0,0 L108,0 L108,66 L0,108 Z" />
     <path
-        android:fillColor="#A5D6A7"
-        android:pathData="M0,0 L72,0 L0,72 Z" />
-    <!-- Subtle corner circles -->
-    <path android:fillColor="#81C784" android:fillAlpha="0.3" android:pathData="M92,92 m-10,0 a10,10 0 1,0 20,0 a10,10 0 1,0 -20,0 Z" />
-    <path android:fillColor="#81C784" android:fillAlpha="0.3" android:pathData="M16,92 m-6,0 a6,6 0 1,0 12,0 a6,6 0 1,0 -12,0 Z" />
-    <path android:fillColor="#81C784" android:fillAlpha="0.3" android:pathData="M92,16 m-6,0 a6,6 0 1,0 12,0 a6,6 0 1,0 -12,0 Z" />
+        android:fillColor="#FFF8F8"
+        android:fillAlpha="0.8"
+        android:pathData="M0,0 L48,0 L0,48 Z" />
+    <path
+        android:fillColor="#F4A8B5"
+        android:fillAlpha="0.32"
+        android:pathData="M95,89 m-10,0 a10,10 0 1,0 20,0 a10,10 0 1,0 -20,0 Z" />
 </vector>

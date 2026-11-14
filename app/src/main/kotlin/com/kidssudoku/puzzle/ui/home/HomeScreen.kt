@@ -44,16 +44,16 @@ fun HomeScreen(
             verticalArrangement = Arrangement.Center
         ) {
             // Title
-            Text(text = "🧩", fontSize = 80.sp)
+            Text(text = "🍒", fontSize = 80.sp)
             Spacer(modifier = Modifier.height(8.dp))
             Text(
-                text = "심플 스도쿠",
+                text = "체리의 스도쿠",
                 fontSize = 38.sp,
                 fontWeight = FontWeight.ExtraBold,
-                color = Color(0xFF2E7D32)
+                color = Color(0xFFC62845)
             )
             Text(
-                text = "누구나 즐기는 숫자 퍼즐",
+                text = "체리와 함께하는 숫자 퍼즐",
                 fontSize = 18.sp,
                 color = Color(0xFF607D8B)
             )

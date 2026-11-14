@@ -607,74 +607,21 @@ private fun GameBottomControls(
     modifier       : Modifier = Modifier
 ) {
     val hintEnabled = hintsRemaining > 0 && !isPaused
-    val clearEnabled = !isPaused
+    val controlsEnabled = !isPaused
 
     Column(
-        modifier            = modifier.fillMaxWidth(),
-        verticalArrangement = Arrangement.spacedBy(8.dp),
-        horizontalAlignment = Alignment.CenterHorizontally
+        modifier = modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
-        // ── 1. 모두 지우기 버튼 ─────────────────────────────────────────────
-        Surface(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(50.dp)
-                .clip(RoundedCornerShape(16.dp))
-                .clickable(enabled = clearEnabled, onClick = onClearAll),
-            shape           = RoundedCornerShape(16.dp),
-            color           = if (clearEnabled) Color(0xFFFFEBEE) else Color(0xFFF1F1F1),
-            border          = BorderStroke(
-                width = 2.dp,
-                color = if (clearEnabled) Color(0xFFFFCDD2) else Color(0xFFE0E0E0)
-            ),
-            shadowElevation = if (clearEnabled) 3.dp else 0.dp
-        ) {
-            Row(
-                modifier              = Modifier.fillMaxSize().padding(horizontal = 16.dp),
-                verticalAlignment     = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.Center
-            ) {
-                Text(text = "🗑️", fontSize = 18.sp)
-                Spacer(modifier = Modifier.width(6.dp))
-                Text(
-                    text       = "모두 지우기",
-                    fontSize   = 15.sp,
-                    fontWeight = FontWeight.Bold,
-                    color      = if (clearEnabled) Color(0xFFC62828) else Color(0xFF9E9E9E)
-                )
-            }
-        }
-
-        // ── 2. 힌트 보기 버튼 ──────────────────────────────────────────────
-        Surface(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(50.dp)
-                .clip(RoundedCornerShape(16.dp))
-                .clickable(enabled = hintEnabled, onClick = onHint),
-            shape           = RoundedCornerShape(16.dp),
-            color           = if (hintEnabled) Color(0xFFFFF9C4) else Color(0xFFF1F1F1),
-            border          = BorderStroke(
-                width = 2.dp,
-                color = if (hintEnabled) Color(0xFFFFB300) else Color(0xFFE0E0E0)
-            ),
-            shadowElevation = if (hintEnabled) 3.dp else 0.dp
-        ) {
-            Row(
-                modifier              = Modifier.fillMaxSize().padding(horizontal = 16.dp),
-                verticalAlignment     = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.Center
-            ) {
-                Text(text = "💡", fontSize = 18.sp)
-                Spacer(modifier = Modifier.width(6.dp))
-                Text(
-                    text       = "힌트",
-                    fontSize   = 15.sp,
-                    fontWeight = FontWeight.Bold,
-                    color      = if (hintEnabled) Color(0xFFE65100) else Color(0xFF9E9E9E)
-                )
-                Spacer(modifier = Modifier.width(6.dp))
-                // 남은 힌트 개수 뱃지
+        GameControlButton(
+            emoji = "💡",
+            label = "힌트",
+            enabled = hintEnabled,
+            enabledColor = Color(0xFFFFF9C4),
+            enabledBorderColor = Color(0xFFFFB300),
+            enabledTextColor = Color(0xFFE65100),
+            onClick = onHint,
+            trailingContent = {
                 Box(
                     modifier = Modifier
                         .size(22.dp)
@@ -685,83 +632,96 @@ private fun GameBottomControls(
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
-                        text       = "$hintsRemaining",
-                        fontSize   = 12.sp,
+                        text = "$hintsRemaining",
+                        fontSize = 12.sp,
                         fontWeight = FontWeight.ExtraBold,
-                        color      = Color.White
+                        color = Color.White
                     )
                 }
             }
-        }
+        )
 
-        // ── 3. 일시 정지 / 계속하기 버튼 ──────────────────────────────────────
-        val pauseBgColor     = if (isPaused) Color(0xFFE8F5E9) else Color(0xFFE3F2FD)
+        val pauseBgColor = if (isPaused) Color(0xFFE8F5E9) else Color(0xFFE3F2FD)
         val pauseBorderColor = if (isPaused) Color(0xFF66BB6A) else Color(0xFF64B5F6)
-        val pauseTextColor   = if (isPaused) Color(0xFF2E7D32) else Color(0xFF1565C0)
+        val pauseTextColor = if (isPaused) Color(0xFF2E7D32) else Color(0xFF1565C0)
+        GameControlButton(
+            emoji = if (isPaused) "▶" else "⏸",
+            label = if (isPaused) "계속하기" else "일시 정지",
+            enabled = true,
+            enabledColor = pauseBgColor,
+            enabledBorderColor = pauseBorderColor,
+            enabledTextColor = pauseTextColor,
+            onClick = onPause
+        )
 
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            GameControlButton(
+                modifier = Modifier.weight(1f),
+                emoji = "🗑️",
+                label = "모두 지우기",
+                enabled = controlsEnabled,
+                enabledColor = Color(0xFFFFEBEE),
+                enabledBorderColor = Color(0xFFFFCDD2),
+                enabledTextColor = Color(0xFFC62828),
+                onClick = onClearAll
+            )
+            GameControlButton(
+                modifier = Modifier.weight(1f),
+                emoji = "🚪",
+                label = "포기",
+                enabled = controlsEnabled,
+                enabledColor = Color(0xFFFFEBEE),
+                enabledBorderColor = Color(0xFFFFCDD2),
+                enabledTextColor = Color(0xFFC62828),
+                onClick = onAbandon
+            )
+        }
+    }
+}
+
+@Composable
+private fun GameControlButton(
+    modifier: Modifier = Modifier,
+    emoji: String,
+    label: String,
+    enabled: Boolean,
+    enabledColor: Color,
+    enabledBorderColor: Color,
+    enabledTextColor: Color,
+    onClick: () -> Unit,
+    trailingContent: (@Composable () -> Unit)? = null
+) {
+    val disabledColor = Color(0xFFF1F1F1)
+    Surface(
+        modifier = modifier
+            .fillMaxWidth()
+            .height(50.dp)
+            .clip(RoundedCornerShape(16.dp))
+            .clickable(enabled = enabled, onClick = onClick),
+        shape = RoundedCornerShape(16.dp),
+        color = if (enabled) enabledColor else disabledColor,
+        border = BorderStroke(
+            width = 2.dp,
+            color = if (enabled) enabledBorderColor else Color(0xFFE0E0E0)
+        ),
+        shadowElevation = if (enabled) 3.dp else 0.dp
+    ) {
         Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
+            modifier = Modifier.fillMaxSize().padding(horizontal = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.Center
         ) {
-            Surface(
-                modifier = Modifier
-                    .weight(1f)
-                    .height(50.dp)
-                    .clip(RoundedCornerShape(16.dp))
-                    .clickable(onClick = onPause),
-                shape           = RoundedCornerShape(16.dp),
-                color           = pauseBgColor,
-                border          = BorderStroke(width = 2.dp, color = pauseBorderColor),
-                shadowElevation = 3.dp
-            ) {
-                Row(
-                    modifier              = Modifier.fillMaxSize().padding(horizontal = 8.dp),
-                    verticalAlignment     = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.Center
-                ) {
-                    Text(
-                        text     = if (isPaused) "▶" else "⏸",
-                        fontSize = 18.sp,
-                        color    = pauseTextColor
-                    )
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text(
-                        text       = if (isPaused) "계속하기" else "일시 정지",
-                        fontSize   = 15.sp,
-                        fontWeight = FontWeight.Bold,
-                        color      = pauseTextColor
-                    )
-                }
-            }
-
-            Surface(
-                modifier = Modifier
-                    .weight(1f)
-                    .height(50.dp)
-                    .clip(RoundedCornerShape(16.dp))
-                    .clickable(enabled = !isPaused, onClick = onAbandon),
-                shape = RoundedCornerShape(16.dp),
-                color = if (isPaused) Color(0xFFF1F1F1) else Color(0xFFFFEBEE),
-                border = BorderStroke(
-                    width = 2.dp,
-                    color = if (isPaused) Color(0xFFE0E0E0) else Color(0xFFFFCDD2)
-                ),
-                shadowElevation = if (isPaused) 0.dp else 3.dp
-            ) {
-                Row(
-                    modifier = Modifier.fillMaxSize().padding(horizontal = 8.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.Center
-                ) {
-                    Text("🚪", fontSize = 18.sp)
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text(
-                        text = "포기",
-                        fontSize = 15.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = if (isPaused) Color(0xFF9E9E9E) else Color(0xFFC62828)
-                    )
-                }
+            Text(emoji, fontSize = 18.sp, color = enabledTextColor)
+            Spacer(modifier = Modifier.width(6.dp))
+            Text(
+                text = label,
+                fontSize = 14.sp,
+                fontWeight = FontWeight.Bold,
+                color = if (enabled) enabledTextColor else Color(0xFF9E9E9E)
+            )
+            if (trailingContent != null) {
+                Spacer(modifier = Modifier.width(6.dp))
+                trailingContent()
             }
         }
     }
