@@ -12,8 +12,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.kidssudoku.puzzle.R
 import com.kidssudoku.puzzle.ui.theme.*
 
 @Composable
@@ -47,13 +49,13 @@ fun HomeScreen(
             Text(text = "🍒", fontSize = 80.sp)
             Spacer(modifier = Modifier.height(8.dp))
             Text(
-                text = "체리의 스도쿠",
+                text = stringResource(R.string.home_title),
                 fontSize = 38.sp,
                 fontWeight = FontWeight.ExtraBold,
                 color = Color(0xFFC62845)
             )
             Text(
-                text = "체리와 함께하는 숫자 퍼즐",
+                text = stringResource(R.string.home_subtitle),
                 fontSize = 18.sp,
                 color = Color(0xFF607D8B)
             )
@@ -63,24 +65,24 @@ fun HomeScreen(
             // Grid size cards - enlarged box size for perfect text containment
             GridSizeCard(
                 emoji    = "🌱",
-                label    = "4단",
-                subtitle = "1~4 숫자 · 간단하게",
+                label    = stringResource(R.string.grid_4_label),
+                subtitle = stringResource(R.string.grid_4_description),
                 color    = EasyColor,
                 onClick  = { onGridSizeSelected(4) }
             )
             Spacer(modifier = Modifier.height(18.dp))
             GridSizeCard(
                 emoji    = "🌿",
-                label    = "6단",
-                subtitle = "1~6 숫자 · 차근차근",
+                label    = stringResource(R.string.grid_6_label),
+                subtitle = stringResource(R.string.grid_6_description),
                 color    = MediumColor,
                 onClick  = { onGridSizeSelected(6) }
             )
             Spacer(modifier = Modifier.height(18.dp))
             GridSizeCard(
                 emoji    = "🌳",
-                label    = "9단",
-                subtitle = "1~9 숫자 · 클래식 스도쿠",
+                label    = stringResource(R.string.grid_9_label),
+                subtitle = stringResource(R.string.grid_9_description),
                 color    = HardColor,
                 onClick  = { onGridSizeSelected(9) }
             )

@@ -13,10 +13,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.kidssudoku.puzzle.R
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.kidssudoku.puzzle.ui.theme.CreamBackground
 import com.kidssudoku.puzzle.ui.theme.EasyColor
@@ -25,8 +27,9 @@ import com.kidssudoku.puzzle.ui.theme.MediumColor
 
 @Composable
 fun SettingsScreen(
-    onBack    : () -> Unit,
-    viewModel : SettingsViewModel
+    onBack               : () -> Unit,
+    onPrivacyPolicyClick : () -> Unit,
+    viewModel            : SettingsViewModel
 ) {
     val onlyAvailableNumbers by viewModel.onlyAvailableNumbers.collectAsStateWithLifecycle()
     val soundEnabled by viewModel.soundEnabled.collectAsStateWithLifecycle()
@@ -53,7 +56,7 @@ fun SettingsScreen(
                 }
                 Spacer(modifier = Modifier.width(4.dp))
                 Text(
-                    text       = "설정",
+                    text       = stringResource(R.string.settings),
                     fontSize   = 26.sp,
                     fontWeight = FontWeight.Bold
                 )
@@ -63,7 +66,7 @@ fun SettingsScreen(
 
             // ── Gameplay guide option (Toggle Switch) ─────────────────────────
             Text(
-                text       = "🎮  게임 설정",
+                text       = stringResource(R.string.game_settings),
                 fontSize   = 18.sp,
                 fontWeight = FontWeight.Bold,
                 color      = Color(0xFF37474F)
@@ -87,7 +90,7 @@ fun SettingsScreen(
                 ) {
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
-                            text       = "입력 가능한 숫자만 선택",
+                            text       = stringResource(R.string.only_available_numbers),
                             fontSize   = 16.sp,
                             fontWeight = FontWeight.Bold,
                             color      = Color(0xFF263238)
@@ -95,9 +98,9 @@ fun SettingsScreen(
                         Spacer(modifier = Modifier.height(4.dp))
                         Text(
                             text     = if (onlyAvailableNumbers) {
-                                "빈칸 터치 시 규칙상 입력 가능한 숫자만 가이드합니다."
+                                stringResource(R.string.guided_numbers_on)
                             } else {
-                                "비활성화 상태: 모든 숫자를 자유롭게 입력할 수 있습니다."
+                                stringResource(R.string.guided_numbers_off)
                             },
                             fontSize = 13.sp,
                             color    = if (onlyAvailableNumbers) EasyColor else Color(0xFF78909C)
@@ -137,14 +140,14 @@ fun SettingsScreen(
                 ) {
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
-                            text = "효과음 사용",
+                            text = stringResource(R.string.sound_effects),
                             fontSize = 16.sp,
                             fontWeight = FontWeight.Bold,
                             color = Color(0xFF263238)
                         )
                         Spacer(modifier = Modifier.height(4.dp))
                         Text(
-                            text = if (soundEnabled) "게임 효과음을 재생합니다." else "게임 효과음을 재생하지 않습니다.",
+                            text = stringResource(if (soundEnabled) R.string.sound_effects_on else R.string.sound_effects_off),
                             fontSize = 13.sp,
                             color = if (soundEnabled) EasyColor else Color(0xFF78909C)
                         )
@@ -170,13 +173,13 @@ fun SettingsScreen(
 
             // ── Grouped Reset Section ──────────────────────────────────────────
             Text(
-                text       = "🔄  진행 초기화",
+                text       = stringResource(R.string.reset_progress),
                 fontSize   = 18.sp,
                 fontWeight = FontWeight.Bold,
                 color      = Color(0xFF37474F)
             )
             Text(
-                text     = "각 단 전체 또는 특정 난이도의 진행 상황을 초기화합니다.",
+                text     = stringResource(R.string.reset_progress_description),
                 fontSize = 13.sp,
                 color    = Color(0xFF78909C)
             )
@@ -186,6 +189,7 @@ fun SettingsScreen(
             GridResetGroupCard(
                 gridSize = 4,
                 emoji    = "🌱",
+                gridLabel = stringResource(R.string.grid_4_label),
                 color    = EasyColor,
                 onResetAll = {
                     pendingGridSize   = 4
@@ -205,6 +209,7 @@ fun SettingsScreen(
             GridResetGroupCard(
                 gridSize = 6,
                 emoji    = "🌿",
+                gridLabel = stringResource(R.string.grid_6_label),
                 color    = MediumColor,
                 onResetAll = {
                     pendingGridSize   = 6
@@ -224,6 +229,7 @@ fun SettingsScreen(
             GridResetGroupCard(
                 gridSize = 9,
                 emoji    = "🌳",
+                gridLabel = stringResource(R.string.grid_9_label),
                 color    = HardColor,
                 onResetAll = {
                     pendingGridSize   = 9
@@ -241,10 +247,13 @@ fun SettingsScreen(
             HorizontalDivider(color = Color(0xFFECEFF1))
             Spacer(modifier = Modifier.height(16.dp))
             Text(
-                text     = "체리의 스도쿠  v1.0.0",
+                text     = stringResource(R.string.app_version),
                 fontSize = 13.sp,
                 color    = Color(0xFFB0BEC5)
             )
+            TextButton(onClick = onPrivacyPolicyClick) {
+                Text(stringResource(R.string.privacy_policy))
+            }
             Spacer(modifier = Modifier.height(32.dp))
         }
     }
@@ -252,18 +261,22 @@ fun SettingsScreen(
     // ── Confirm Dialog ─────────────────────────────────────────────────────
     if (showDialog) {
         val isAllReset = pendingDifficulty == null
-        val diffKr = when (pendingDifficulty) {
-            "EASY" -> "초급"
-            "MEDIUM" -> "중급"
-            "HARD" -> "상급"
+        val difficultyLabel = when (pendingDifficulty) {
+            "EASY" -> stringResource(R.string.difficulty_easy)
+            "MEDIUM" -> stringResource(R.string.difficulty_medium)
+            "HARD" -> stringResource(R.string.difficulty_hard)
             else -> ""
         }
 
-        val titleText = if (isAllReset) "${pendingGridSize}단 전체 초기화" else "${pendingGridSize}단 $diffKr 초기화"
-        val messageText = if (isAllReset) {
-            "${pendingGridSize}단의 모든 난이도(초급, 중급, 상급)의\n진행 상황을 모두 초기화할까요? 되돌릴 수 없습니다."
+        val titleText = if (isAllReset) {
+            stringResource(R.string.reset_grid_title, pendingGridSize)
         } else {
-            "${pendingGridSize}단 $diffKr 의 모든 진행 상황을\n초기화할까요? 되돌릴 수 없습니다."
+            stringResource(R.string.reset_difficulty_title, pendingGridSize, difficultyLabel)
+        }
+        val messageText = if (isAllReset) {
+            stringResource(R.string.reset_grid_message, pendingGridSize)
+        } else {
+            stringResource(R.string.reset_difficulty_message, pendingGridSize, difficultyLabel)
         }
 
         AlertDialog(
@@ -291,12 +304,12 @@ fun SettingsScreen(
                         showDialog = false
                     }
                 ) {
-                    Text("초기화", color = HardColor, fontWeight = FontWeight.Bold)
+                    Text(stringResource(R.string.reset), color = HardColor, fontWeight = FontWeight.Bold)
                 }
             },
             dismissButton = {
                 TextButton(onClick = { showDialog = false }) {
-                    Text("취소")
+                    Text(stringResource(R.string.cancel))
                 }
             }
         )
@@ -307,6 +320,7 @@ fun SettingsScreen(
 private fun GridResetGroupCard(
     gridSize          : Int,
     emoji             : String,
+    gridLabel         : String,
     color             : Color,
     onResetAll        : () -> Unit,
     onResetDifficulty : (String) -> Unit
@@ -333,7 +347,7 @@ private fun GridResetGroupCard(
                     Text(text = emoji, fontSize = 24.sp)
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
-                        text       = "${gridSize}단",
+                        text       = gridLabel,
                         fontSize   = 20.sp,
                         fontWeight = FontWeight.Bold,
                         color      = Color(0xFF263238)
@@ -348,7 +362,7 @@ private fun GridResetGroupCard(
                     contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp)
                 ) {
                     Text(
-                        text       = "${gridSize}단 초기화",
+                        text       = stringResource(R.string.reset_grid_button, gridSize),
                         fontSize   = 14.sp,
                         fontWeight = FontWeight.Bold
                     )
@@ -365,11 +379,11 @@ private fun GridResetGroupCard(
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 val diffs = listOf(
-                    Triple("EASY",   "초급 초기화", EasyColor),
-                    Triple("MEDIUM", "중급 초기화", MediumColor),
-                    Triple("HARD",   "상급 초기화", HardColor)
+                    Triple("EASY", R.string.difficulty_easy, EasyColor),
+                    Triple("MEDIUM", R.string.difficulty_medium, MediumColor),
+                    Triple("HARD", R.string.difficulty_hard, HardColor)
                 )
-                diffs.forEach { (diff, label, diffColor) ->
+                diffs.forEach { (diff, labelRes, diffColor) ->
                     FilledTonalButton(
                         onClick        = { onResetDifficulty(diff) },
                         modifier       = Modifier
@@ -383,7 +397,7 @@ private fun GridResetGroupCard(
                         contentPadding = PaddingValues(horizontal = 4.dp, vertical = 0.dp)
                     ) {
                         Text(
-                            text       = label,
+                            text       = stringResource(R.string.reset_difficulty_button, stringResource(labelRes)),
                             fontSize   = 13.sp,
                             fontWeight = FontWeight.SemiBold,
                             textAlign  = TextAlign.Center

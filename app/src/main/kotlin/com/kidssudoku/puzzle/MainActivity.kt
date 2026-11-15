@@ -1,5 +1,7 @@
 package com.kidssudoku.puzzle
 
+import android.content.Intent
+import android.net.Uri
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -8,6 +10,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.systemBarsPadding
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation3.runtime.NavEntry
@@ -27,8 +30,10 @@ import com.kidssudoku.puzzle.ui.theme.SudokuTheme
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
-class MainActivity : ComponentActivity() {
+private const val PRIVACY_POLICY_URL =
+    "https://jh-crepair.github.io/sudoku/privacy-policy.html"
 
+class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
@@ -63,6 +68,7 @@ fun SudokuApp(
     modifier: Modifier = Modifier
 ) {
     val backStack = rememberNavBackStack(HomeRoute)
+    val context = LocalContext.current
 
     NavDisplay(
         backStack     = backStack,
@@ -212,6 +218,9 @@ fun SudokuApp(
                 )
                 SettingsScreen(
                     onBack    = { backStack.removeLastOrNull() },
+                    onPrivacyPolicyClick = {
+                        context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(PRIVACY_POLICY_URL)))
+                    },
                     viewModel = vm
                 )
             }

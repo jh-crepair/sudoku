@@ -27,6 +27,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
@@ -97,7 +98,9 @@ fun GameScreen(
 
             // ── HUD ──────────────────────────────────────────────────────────
             GameHud(
-                puzzleInfo       = uiState.puzzleInfo,
+                gridSize         = uiState.gridSize,
+                difficulty       = uiState.difficulty,
+                puzzleNumber     = uiState.puzzleNumber,
                 elapsedSeconds   = elapsedSeconds,
                 timeLimitSeconds = timeLimitSeconds,
                 onBack           = onBack
@@ -180,7 +183,7 @@ fun GameScreen(
                 onDismissRequest = { showClearConfirmDialog = false },
                 title = {
                     Text(
-                        text       = "모두 지우기",
+                        text       = stringResource(R.string.clear_all_title),
                         fontWeight = FontWeight.Bold,
                         fontSize   = 20.sp,
                         color      = Color(0xFF263238)
@@ -188,7 +191,7 @@ fun GameScreen(
                 },
                 text = {
                     Text(
-                        text     = "입력한 모든 숫자를 지우시겠습니까?",
+                        text     = stringResource(R.string.clear_all_message),
                         fontSize = 16.sp,
                         color    = Color(0xFF455A64)
                     )
@@ -205,7 +208,7 @@ fun GameScreen(
                         shape = RoundedCornerShape(12.dp)
                     ) {
                         Text(
-                            text       = "지우기",
+                            text       = stringResource(R.string.clear),
                             fontWeight = FontWeight.Bold,
                             color      = Color.White
                         )
@@ -217,7 +220,7 @@ fun GameScreen(
                         shape   = RoundedCornerShape(12.dp)
                     ) {
                         Text(
-                            text  = "취소",
+                            text  = stringResource(R.string.cancel),
                             color = Color(0xFF546E7A)
                         )
                     }
@@ -232,7 +235,7 @@ fun GameScreen(
                 onDismissRequest = { showAbandonConfirmDialog = false },
                 title = {
                     Text(
-                        text = "게임을 포기할까요?",
+                        text = stringResource(R.string.abandon_title),
                         fontWeight = FontWeight.Bold,
                         fontSize = 20.sp,
                         color = Color(0xFF263238)
@@ -240,7 +243,7 @@ fun GameScreen(
                 },
                 text = {
                     Text(
-                        text = "진행 시간과 입력한 숫자가 모두 초기화되고 게임 목록으로 이동합니다.",
+                        text = stringResource(R.string.abandon_message),
                         fontSize = 16.sp,
                         color = Color(0xFF455A64)
                     )
@@ -256,7 +259,7 @@ fun GameScreen(
                         ),
                         shape = RoundedCornerShape(12.dp)
                     ) {
-                        Text("포기", fontWeight = FontWeight.Bold, color = Color.White)
+                        Text(stringResource(R.string.quit), fontWeight = FontWeight.Bold, color = Color.White)
                     }
                 },
                 dismissButton = {
@@ -264,7 +267,7 @@ fun GameScreen(
                         onClick = { showAbandonConfirmDialog = false },
                         shape = RoundedCornerShape(12.dp)
                     ) {
-                        Text("계속하기", color = Color(0xFF546E7A))
+                        Text(stringResource(R.string.continue_game), color = Color(0xFF546E7A))
                     }
                 },
                 shape = RoundedCornerShape(20.dp),
@@ -280,9 +283,9 @@ fun GameScreen(
         ) {
             val isTimeOver = gameOverReason == GameOverReason.TIME_OVER
             val reasonDesc = if (isTimeOver) {
-                "제한 시간을 초과했습니다!"
+                stringResource(R.string.time_limit_reached)
             } else {
-                "실패 횟수가 ${GameViewModel.MAX_FAIL_COUNT}회에 도달했습니다!"
+                stringResource(R.string.fail_limit_reached, GameViewModel.MAX_FAIL_COUNT)
             }
             val emoji = if (isTimeOver) "⏰" else "❌"
 
@@ -311,7 +314,7 @@ fun GameScreen(
                         Text(emoji, fontSize = 64.sp)
                         Spacer(modifier = Modifier.height(14.dp))
                         Text(
-                            text       = "게임 실패",
+                            text       = stringResource(R.string.game_over),
                             fontSize   = 28.sp,
                             fontWeight = FontWeight.ExtraBold,
                             color      = Color(0xFFD32F2F)
@@ -340,7 +343,7 @@ fun GameScreen(
                                     modifier = Modifier.fillMaxWidth(),
                                     horizontalArrangement = Arrangement.SpaceBetween
                                 ) {
-                                    Text("진행 시간", fontSize = 14.sp, color = Color(0xFF78909C))
+                                    Text(stringResource(R.string.elapsed_time), fontSize = 14.sp, color = Color(0xFF78909C))
                                     val elMin = elapsedSeconds / 60
                                     val elSec = elapsedSeconds % 60
                                     val limMin = timeLimitSeconds / 60
@@ -356,7 +359,7 @@ fun GameScreen(
                                     modifier = Modifier.fillMaxWidth(),
                                     horizontalArrangement = Arrangement.SpaceBetween
                                 ) {
-                                    Text("오류 횟수", fontSize = 14.sp, color = Color(0xFF78909C))
+                                    Text(stringResource(R.string.mistakes), fontSize = 14.sp, color = Color(0xFF78909C))
                                     Text(
                                         "$failCount / ${GameViewModel.MAX_FAIL_COUNT}",
                                         fontSize   = 14.sp,
@@ -382,7 +385,7 @@ fun GameScreen(
                             elevation = ButtonDefaults.buttonElevation(4.dp)
                         ) {
                             Text(
-                                text       = "다시하기 ↺",
+                                text       = stringResource(R.string.retry),
                                 fontSize   = 18.sp,
                                 fontWeight = FontWeight.Bold,
                                 color      = Color.White
@@ -399,7 +402,7 @@ fun GameScreen(
                             shape    = RoundedCornerShape(16.dp)
                         ) {
                             Text(
-                                text     = "목록으로",
+                                text     = stringResource(R.string.back_to_list),
                                 fontSize = 16.sp,
                                 color    = Color(0xFF546E7A)
                             )
@@ -441,14 +444,14 @@ fun GameScreen(
                         Text("⏸️", fontSize = 64.sp)
                         Spacer(modifier = Modifier.height(16.dp))
                         Text(
-                            text       = "일시정지",
+                            text       = stringResource(R.string.paused),
                             fontSize   = 28.sp,
                             fontWeight = FontWeight.ExtraBold,
                             color      = Color(0xFF263238)
                         )
                         Spacer(modifier = Modifier.height(12.dp))
                         Text(
-                            text       = "준비가 되면 계속하기를 눌러주세요!",
+                            text       = stringResource(R.string.paused_message),
                             fontSize   = 15.sp,
                             color      = Color(0xFF78909C),
                             textAlign  = TextAlign.Center,
@@ -467,7 +470,7 @@ fun GameScreen(
                             elevation = ButtonDefaults.buttonElevation(4.dp)
                         ) {
                             Text(
-                                text       = "▶ 계속하기",
+                                text       = "▶ ${stringResource(R.string.continue_game)}",
                                 fontSize   = 20.sp,
                                 fontWeight = FontWeight.Bold,
                                 color      = Color.White
@@ -484,11 +487,28 @@ fun GameScreen(
 
 @Composable
 private fun GameHud(
-    puzzleInfo       : String,
+    gridSize         : Int,
+    difficulty       : String,
+    puzzleNumber     : Int,
     elapsedSeconds   : Int,
     timeLimitSeconds : Int,
     onBack           : () -> Unit
 ) {
+    val gridLabel = stringResource(
+        when (gridSize) {
+            4 -> R.string.grid_4_label
+            6 -> R.string.grid_6_label
+            else -> R.string.grid_9_label
+        }
+    )
+    val difficultyLabel = stringResource(
+        when (difficulty) {
+            "EASY" -> R.string.difficulty_easy
+            "MEDIUM" -> R.string.difficulty_medium
+            else -> R.string.difficulty_hard
+        }
+    )
+    val puzzleInfo = stringResource(R.string.puzzle_info, gridLabel, difficultyLabel, puzzleNumber)
     val elapsedMinutes = elapsedSeconds / 60
     val elapsedRemainingSeconds = elapsedSeconds % 60
     val limitMinutes = timeLimitSeconds / 60
@@ -515,7 +535,7 @@ private fun GameHud(
         ) {
             Icon(
                 painter            = painterResource(id = R.drawable.ic_arrow_back),
-                contentDescription = "뒤로가기",
+                contentDescription = stringResource(R.string.back),
                 tint               = Color(0xFF37474F),
                 modifier           = Modifier.size(28.dp)
             )
@@ -579,7 +599,7 @@ private fun FailureCountBadge(
             horizontalArrangement = Arrangement.Center
         ) {
             Text(
-                text       = "오류 횟수: ",
+                text       = stringResource(R.string.mistakes_count),
                 fontSize   = 15.sp,
                 fontWeight = FontWeight.Medium,
                 color      = Color(0xFF546E7A)
@@ -615,7 +635,7 @@ private fun GameBottomControls(
     ) {
         GameControlButton(
             emoji = "💡",
-            label = "힌트",
+            label = stringResource(R.string.hint),
             enabled = hintEnabled,
             enabledColor = Color(0xFFFFF9C4),
             enabledBorderColor = Color(0xFFFFB300),
@@ -646,7 +666,7 @@ private fun GameBottomControls(
         val pauseTextColor = if (isPaused) Color(0xFF2E7D32) else Color(0xFF1565C0)
         GameControlButton(
             emoji = if (isPaused) "▶" else "⏸",
-            label = if (isPaused) "계속하기" else "일시 정지",
+            label = stringResource(if (isPaused) R.string.continue_game else R.string.pause),
             enabled = true,
             enabledColor = pauseBgColor,
             enabledBorderColor = pauseBorderColor,
@@ -658,7 +678,7 @@ private fun GameBottomControls(
             GameControlButton(
                 modifier = Modifier.weight(1f),
                 emoji = "🗑️",
-                label = "모두 지우기",
+                label = stringResource(R.string.clear_all),
                 enabled = controlsEnabled,
                 enabledColor = Color(0xFFFFEBEE),
                 enabledBorderColor = Color(0xFFFFCDD2),
@@ -668,7 +688,7 @@ private fun GameBottomControls(
             GameControlButton(
                 modifier = Modifier.weight(1f),
                 emoji = "🚪",
-                label = "포기",
+                label = stringResource(R.string.give_up),
                 enabled = controlsEnabled,
                 enabledColor = Color(0xFFFFEBEE),
                 enabledBorderColor = Color(0xFFFFCDD2),
@@ -1051,7 +1071,7 @@ fun NumberPickerOverlay(
                 verticalArrangement   = Arrangement.spacedBy(10.dp)
             ) {
                 Text(
-                    text       = if (isGuided) "입력 가능한 숫자를 선택하세요" else "숫자를 선택하세요",
+                    text       = stringResource(if (isGuided) R.string.select_valid_number else R.string.select_number),
                     fontSize   = 16.sp,
                     color      = if (isGuided) Color(0xFF388E3C) else Color(0xFF78909C),
                     fontWeight = FontWeight.SemiBold
@@ -1089,7 +1109,7 @@ fun NumberPickerOverlay(
                 ) {
                     MarkerActionButton(
                         text = "✓",
-                        description = "체크 표시 전환",
+                        description = stringResource(R.string.toggle_check),
                         active = isChecked,
                         activeColor = Color(0xFF2E7D32),
                         buttonSize = buttonSize,
@@ -1097,7 +1117,7 @@ fun NumberPickerOverlay(
                     )
                     MarkerActionButton(
                         text = "🗑",
-                        description = "숫자 지우기",
+                        description = stringResource(R.string.delete_number),
                         active = false,
                         activeColor = Color(0xFFC62828),
                         backgroundColor = Color(0xFFFFEBEE),
@@ -1107,7 +1127,7 @@ fun NumberPickerOverlay(
                     )
                     MarkerActionButton(
                         text = "?",
-                        description = "물음표 표시 전환",
+                        description = stringResource(R.string.toggle_question),
                         active = hasQuestion,
                         activeColor = Color(0xFFEF6C00),
                         buttonSize = buttonSize,

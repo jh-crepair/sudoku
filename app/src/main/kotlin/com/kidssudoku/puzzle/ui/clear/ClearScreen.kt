@@ -11,9 +11,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.kidssudoku.puzzle.R
 import com.kidssudoku.puzzle.ui.theme.*
 import kotlinx.coroutines.delay
 
@@ -60,7 +62,7 @@ fun ClearScreen(
             )
             Spacer(modifier = Modifier.height(10.dp))
             Text(
-                text       = "완성했어요!",
+                text       = stringResource(R.string.puzzle_complete),
                 fontSize   = 34.sp,
                 fontWeight = FontWeight.ExtraBold,
                 color      = Color(0xFF2E7D32)
@@ -107,7 +109,7 @@ fun ClearScreen(
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
                     Text(
-                        text     = "⏱  걸린 시간",
+                        text     = stringResource(R.string.time_taken),
                         fontSize = 15.sp,
                         color    = Color(0xFF78909C)
                     )
@@ -139,7 +141,7 @@ fun ClearScreen(
                     )
                 ) {
                     Text(
-                        text       = "다시하기 ↺",
+                        text       = stringResource(R.string.retry),
                         fontSize   = 17.sp,
                         fontWeight = FontWeight.Bold
                     )
@@ -154,7 +156,7 @@ fun ClearScreen(
                     shape    = RoundedCornerShape(16.dp)
                 ) {
                     Text(
-                        text       = "다음판 진행하기 →",
+                        text       = stringResource(R.string.next_puzzle),
                         fontSize   = 17.sp,
                         fontWeight = FontWeight.Bold
                     )
@@ -171,7 +173,7 @@ fun ClearScreen(
                 shape    = RoundedCornerShape(16.dp)
             ) {
                 Text(
-                    text     = "목록으로",
+                    text     = stringResource(R.string.back_to_list),
                     fontSize = 17.sp,
                     color    = Color(0xFF546E7A)
                 )

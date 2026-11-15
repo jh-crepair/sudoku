@@ -11,9 +11,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.kidssudoku.puzzle.R
 import com.kidssudoku.puzzle.ui.theme.*
 
 @Composable
@@ -22,7 +24,13 @@ fun DifficultyScreen(
     onDifficultySelected: (difficulty: String) -> Unit,
     onBack: () -> Unit
 ) {
-    val gridLabel = when (gridSize) { 4 -> "4단"; 6 -> "6단"; else -> "9단" }
+    val gridLabel = stringResource(
+        when (gridSize) {
+            4 -> R.string.grid_4_label
+            6 -> R.string.grid_6_label
+            else -> R.string.grid_9_label
+        }
+    )
 
     Box(
         modifier = Modifier
@@ -41,7 +49,7 @@ fun DifficultyScreen(
                 }
                 Spacer(modifier = Modifier.width(4.dp))
                 Text(
-                    text = "$gridLabel 난이도 선택",
+                    text = stringResource(R.string.difficulty_heading, gridLabel),
                     fontSize = 26.sp,
                     fontWeight = FontWeight.Bold
                 )
@@ -51,24 +59,24 @@ fun DifficultyScreen(
 
             DifficultyCard(
                 emoji       = "😊",
-                label       = "초급",
-                description = "쉽고 재미있게 시작해요!",
+                label       = stringResource(R.string.difficulty_easy),
+                description = stringResource(R.string.difficulty_easy_description),
                 color       = EasyColor,
                 onClick     = { onDifficultySelected("EASY") }
             )
             Spacer(modifier = Modifier.height(18.dp))
             DifficultyCard(
                 emoji       = "🤔",
-                label       = "중급",
-                description = "조금 더 생각해봐요!",
+                label       = stringResource(R.string.difficulty_medium),
+                description = stringResource(R.string.difficulty_medium_description),
                 color       = MediumColor,
                 onClick     = { onDifficultySelected("MEDIUM") }
             )
             Spacer(modifier = Modifier.height(18.dp))
             DifficultyCard(
                 emoji       = "😤",
-                label       = "상급",
-                description = "도전! 최고 난이도!",
+                label       = stringResource(R.string.difficulty_hard),
+                description = stringResource(R.string.difficulty_hard_description),
                 color       = HardColor,
                 onClick     = { onDifficultySelected("HARD") }
             )

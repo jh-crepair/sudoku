@@ -13,9 +13,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.kidssudoku.puzzle.R
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.kidssudoku.puzzle.data.model.Progress
 import com.kidssudoku.puzzle.data.model.Puzzle
@@ -41,10 +43,20 @@ fun PuzzleListScreen(
     val diffColor = when (difficulty) {
         "EASY" -> EasyColor; "MEDIUM" -> MediumColor; else -> HardColor
     }
-    val diffLabel = when (difficulty) {
-        "EASY" -> "초급"; "MEDIUM" -> "중급"; else -> "상급"
-    }
-    val gridLabel = when (gridSize) { 4 -> "4단"; 6 -> "6단"; else -> "9단" }
+    val diffLabel = stringResource(
+        when (difficulty) {
+            "EASY" -> R.string.difficulty_easy
+            "MEDIUM" -> R.string.difficulty_medium
+            else -> R.string.difficulty_hard
+        }
+    )
+    val gridLabel = stringResource(
+        when (gridSize) {
+            4 -> R.string.grid_4_label
+            6 -> R.string.grid_6_label
+            else -> R.string.grid_9_label
+        }
+    )
     val cleared   = progressMap.values.count { it.status == PuzzleStatus.CLEARED.name }
 
     Box(
@@ -65,13 +77,13 @@ fun PuzzleListScreen(
                 Spacer(modifier = Modifier.width(4.dp))
                 Column {
                     Text(
-                        text = "$gridLabel  $diffLabel",
+                        text = stringResource(R.string.puzzle_list_heading, gridLabel, diffLabel),
                         fontSize = 24.sp,
                         fontWeight = FontWeight.Bold,
                         color = diffColor
                     )
                     Text(
-                        text = "$cleared / ${puzzles.size} 완료",
+                        text = stringResource(R.string.puzzles_completed, cleared, puzzles.size),
                         fontSize = 13.sp,
                         color = Color(0xFF78909C)
                     )

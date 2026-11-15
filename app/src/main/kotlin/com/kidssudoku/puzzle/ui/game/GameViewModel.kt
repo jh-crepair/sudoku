@@ -36,9 +36,10 @@ internal fun toggleCellMarker(
 }
 
 data class GameUiState(
-    val puzzleInfo : String                  = "",
     val grid       : List<List<Int>>         = emptyList(),
     val gridSize   : Int                     = 9,
+    val difficulty : String                  = "EASY",
+    val puzzleNumber: Int                    = 0,
     val fixedCells : Set<Pair<Int, Int>>     = emptySet(),
     val errorCells : Set<Pair<Int, Int>>     = emptySet(),
     val hintCells  : Set<Pair<Int, Int>>     = emptySet(),
@@ -214,15 +215,11 @@ class GameViewModel(
                 _elapsedSeconds.value = 0
             }
 
-            val diffLabel  = when (puzzle.difficulty) {
-                "EASY" -> "초급"; "MEDIUM" -> "중급"; else -> "상급"
-            }
-            val gridLabel  = when (gridSize) { 4 -> "4단"; 6 -> "6단"; else -> "9단" }
-
             _uiState.value = GameUiState(
-                puzzleInfo = "$gridLabel  $diffLabel  #${puzzle.orderIndex}",
                 grid       = currentGrid.map { it.toList() },
                 gridSize   = gridSize,
+                difficulty = puzzle.difficulty,
+                puzzleNumber = puzzle.orderIndex,
                 fixedCells = fixedCells,
                 solution   = solution
             )
