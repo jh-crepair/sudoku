@@ -13,7 +13,7 @@ android {
   namespace = "com.kidssudoku.puzzle"
   compileSdk = 37
   defaultConfig {
-    applicationId = "com.kidssudoku.puzzle"
+    applicationId = "com.jh.cherry.puzzle.ssudoku"
     minSdk = 26
     targetSdk = 37
     versionCode = 1

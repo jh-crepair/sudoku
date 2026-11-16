@@ -25,12 +25,15 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.PlatformTextStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.LineHeightStyle
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -83,6 +86,9 @@ fun GameScreen(
         }
     }
 
+    val configuration = LocalConfiguration.current
+    val isTablet = configuration.screenWidthDp >= 600
+
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -91,10 +97,10 @@ fun GameScreen(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(horizontal = 16.dp),
+                .padding(horizontal = if (isTablet) 32.dp else 16.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(if (isTablet) 12.dp else 8.dp))
 
             // ── HUD ──────────────────────────────────────────────────────────
             GameHud(
@@ -103,10 +109,11 @@ fun GameScreen(
                 puzzleNumber     = uiState.puzzleNumber,
                 elapsedSeconds   = elapsedSeconds,
                 timeLimitSeconds = timeLimitSeconds,
-                onBack           = onBack
+                onBack           = onBack,
+                isTablet         = isTablet
             )
 
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(if (isTablet) 20.dp else 16.dp))
 
             // ── Grid ─────────────────────────────────────────────────────────
             if (uiState.grid.isNotEmpty()) {
@@ -137,7 +144,8 @@ fun GameScreen(
             // ── 게임판 하단: 오류 횟수/제한 회수 정보 표시 ───────────────────
             FailureCountBadge(
                 failCount    = failCount,
-                maxFailCount = GameViewModel.MAX_FAIL_COUNT
+                maxFailCount = GameViewModel.MAX_FAIL_COUNT,
+                isTablet     = isTablet
             )
 
             Spacer(modifier = Modifier.weight(1f))
@@ -149,10 +157,11 @@ fun GameScreen(
                 onClearAll     = { showClearConfirmDialog = true },
                 onHint         = { viewModel.useHint() },
                 onPause        = { viewModel.togglePause() },
-                onAbandon      = { showAbandonConfirmDialog = true }
+                onAbandon      = { showAbandonConfirmDialog = true },
+                isTablet       = isTablet
             )
 
-            Spacer(modifier = Modifier.height(20.dp))
+            Spacer(modifier = Modifier.height(if (isTablet) 28.dp else 20.dp))
         }
 
         // ── Number picker popup ───────────────────────────────────────────────
@@ -172,7 +181,8 @@ fun GameScreen(
                     onDelete         = { viewModel.deleteNumber(selRow, selCol) },
                     onToggleCheck    = { viewModel.toggleCheck(selRow, selCol) },
                     onToggleQuestion = { viewModel.toggleQuestion(selRow, selCol) },
-                    onDismiss        = { viewModel.dismissNumberPicker() }
+                    onDismiss        = { viewModel.dismissNumberPicker() },
+                    isTablet         = isTablet
                 )
             }
         }
@@ -492,7 +502,8 @@ private fun GameHud(
     puzzleNumber     : Int,
     elapsedSeconds   : Int,
     timeLimitSeconds : Int,
-    onBack           : () -> Unit
+    onBack           : () -> Unit,
+    isTablet         : Boolean = false
 ) {
     val gridLabel = stringResource(
         when (gridSize) {
@@ -525,19 +536,24 @@ private fun GameHud(
     val isWarning = remainingSeconds <= (timeLimitSeconds * 0.2f)
     val timerColor = if (isWarning) Color(0xFFE53935) else Color(0xFF333333)
 
+    val buttonSize = if (isTablet) 56.dp else 48.dp
+    val iconSize = if (isTablet) 32.dp else 28.dp
+
     Row(
-        modifier          = Modifier.fillMaxWidth(),
+        modifier          = Modifier
+            .fillMaxWidth()
+            .then(if (isTablet) Modifier.widthIn(max = 720.dp) else Modifier),
         verticalAlignment = Alignment.CenterVertically
     ) {
         IconButton(
             onClick  = onBack,
-            modifier = Modifier.size(48.dp)
+            modifier = Modifier.size(buttonSize)
         ) {
             Icon(
                 painter            = painterResource(id = R.drawable.ic_arrow_back),
                 contentDescription = stringResource(R.string.back),
                 tint               = Color(0xFF37474F),
-                modifier           = Modifier.size(28.dp)
+                modifier           = Modifier.size(iconSize)
             )
         }
 
@@ -547,20 +563,20 @@ private fun GameHud(
         ) {
             Text(
                 text       = puzzleInfo,
-                fontSize   = 14.sp,
+                fontSize   = if (isTablet) 18.sp else 14.sp,
                 fontWeight = FontWeight.Medium,
                 color      = Color(0xFF78909C)
             )
             Text(
                 text       = timeStr,
-                fontSize   = 24.sp,
+                fontSize   = if (isTablet) 30.sp else 24.sp,
                 fontWeight = FontWeight.Bold,
                 color      = timerColor
             )
         }
 
         // 좌측 뒤로가기 버튼과 대칭을 맞추어 타이머가 정중앙에 배치되도록 하는 더미 여백
-        Spacer(modifier = Modifier.size(48.dp))
+        Spacer(modifier = Modifier.size(buttonSize))
     }
 }
 
@@ -569,7 +585,8 @@ private fun GameHud(
 @Composable
 private fun FailureCountBadge(
     failCount    : Int,
-    maxFailCount : Int
+    maxFailCount : Int,
+    isTablet     : Boolean = false
 ) {
     val bgColor = when {
         failCount >= 8 -> Color(0xFFFFEBEE)
@@ -588,25 +605,29 @@ private fun FailureCountBadge(
     }
 
     Surface(
-        shape    = RoundedCornerShape(14.dp),
+        shape    = RoundedCornerShape(if (isTablet) 18.dp else 14.dp),
         color    = bgColor,
-        border   = BorderStroke(1.5.dp, borderColor),
-        modifier = Modifier.padding(top = 10.dp)
+        border   = BorderStroke(if (isTablet) 2.dp else 1.5.dp, borderColor),
+        modifier = Modifier.padding(top = if (isTablet) 14.dp else 10.dp)
     ) {
         Row(
-            modifier              = Modifier.padding(horizontal = 16.dp, vertical = 7.dp),
+            modifier              = Modifier.padding(
+                horizontal = if (isTablet) 22.dp else 16.dp,
+                vertical   = if (isTablet) 9.dp else 7.dp
+            ),
             verticalAlignment     = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.Center
         ) {
             Text(
                 text       = stringResource(R.string.mistakes_count),
-                fontSize   = 15.sp,
+                fontSize   = if (isTablet) 18.sp else 15.sp,
                 fontWeight = FontWeight.Medium,
                 color      = Color(0xFF546E7A)
             )
+            Spacer(modifier = Modifier.width(if (isTablet) 6.dp else 4.dp))
             Text(
                 text       = "$failCount / $maxFailCount",
-                fontSize   = 16.sp,
+                fontSize   = if (isTablet) 20.sp else 16.sp,
                 fontWeight = FontWeight.ExtraBold,
                 color      = textColor
             )
@@ -624,16 +645,31 @@ private fun GameBottomControls(
     onHint         : () -> Unit,
     onPause        : () -> Unit,
     onAbandon      : () -> Unit,
+    isTablet       : Boolean = false,
     modifier       : Modifier = Modifier
 ) {
     val hintEnabled = hintsRemaining > 0 && !isPaused
     val controlsEnabled = !isPaused
 
+    val buttonHeight = if (isTablet) 66.dp else 50.dp
+    val emojiSize = if (isTablet) 26.sp else 18.sp
+    val labelSize = if (isTablet) 19.sp else 14.sp
+    val badgeSize = if (isTablet) 30.dp else 24.dp
+    val badgeFontSize = if (isTablet) 16.sp else 13.sp
+
     Column(
-        modifier = modifier.fillMaxWidth(),
-        verticalArrangement = Arrangement.spacedBy(8.dp)
+        modifier = modifier
+            .fillMaxWidth()
+            .then(if (isTablet) Modifier.widthIn(max = 720.dp) else Modifier),
+        verticalArrangement = Arrangement.spacedBy(if (isTablet) 12.dp else 8.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
     ) {
         GameControlButton(
+            modifier = Modifier.fillMaxWidth(),
+            height = buttonHeight,
+            emojiSize = emojiSize,
+            labelSize = labelSize,
+            isTablet = isTablet,
             emoji = "💡",
             label = stringResource(R.string.hint),
             enabled = hintEnabled,
@@ -644,7 +680,7 @@ private fun GameBottomControls(
             trailingContent = {
                 Box(
                     modifier = Modifier
-                        .size(22.dp)
+                        .size(badgeSize)
                         .background(
                             color = if (hintEnabled) Color(0xFFFF9800) else Color(0xFFBDBDBD),
                             shape = CircleShape
@@ -653,9 +689,21 @@ private fun GameBottomControls(
                 ) {
                     Text(
                         text = "$hintsRemaining",
-                        fontSize = 12.sp,
+                        fontSize = badgeFontSize,
                         fontWeight = FontWeight.ExtraBold,
-                        color = Color.White
+                        color = Color.White,
+                        textAlign = TextAlign.Center,
+                        style = LocalTextStyle.current.copy(
+                            platformStyle = PlatformTextStyle(
+                                includeFontPadding = false
+                            ),
+                            lineHeight = badgeFontSize,
+                            lineHeightStyle = LineHeightStyle(
+                                alignment = LineHeightStyle.Alignment.Center,
+                                trim = LineHeightStyle.Trim.Both
+                            )
+                        ),
+                        modifier = Modifier.offset(y = if (isTablet) (-1.5).dp else (-1).dp)
                     )
                 }
             }
@@ -665,6 +713,11 @@ private fun GameBottomControls(
         val pauseBorderColor = if (isPaused) Color(0xFF66BB6A) else Color(0xFF64B5F6)
         val pauseTextColor = if (isPaused) Color(0xFF2E7D32) else Color(0xFF1565C0)
         GameControlButton(
+            modifier = Modifier.fillMaxWidth(),
+            height = buttonHeight,
+            emojiSize = emojiSize,
+            labelSize = labelSize,
+            isTablet = isTablet,
             emoji = if (isPaused) "▶" else "⏸",
             label = stringResource(if (isPaused) R.string.continue_game else R.string.pause),
             enabled = true,
@@ -674,9 +727,16 @@ private fun GameBottomControls(
             onClick = onPause
         )
 
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(if (isTablet) 12.dp else 8.dp)
+        ) {
             GameControlButton(
                 modifier = Modifier.weight(1f),
+                height = buttonHeight,
+                emojiSize = emojiSize,
+                labelSize = labelSize,
+                isTablet = isTablet,
                 emoji = "🗑️",
                 label = stringResource(R.string.clear_all),
                 enabled = controlsEnabled,
@@ -687,6 +747,10 @@ private fun GameBottomControls(
             )
             GameControlButton(
                 modifier = Modifier.weight(1f),
+                height = buttonHeight,
+                emojiSize = emojiSize,
+                labelSize = labelSize,
+                isTablet = isTablet,
                 emoji = "🚪",
                 label = stringResource(R.string.give_up),
                 enabled = controlsEnabled,
@@ -702,6 +766,10 @@ private fun GameBottomControls(
 @Composable
 private fun GameControlButton(
     modifier: Modifier = Modifier,
+    height: androidx.compose.ui.unit.Dp = 50.dp,
+    emojiSize: androidx.compose.ui.unit.TextUnit = 18.sp,
+    labelSize: androidx.compose.ui.unit.TextUnit = 14.sp,
+    isTablet: Boolean = false,
     emoji: String,
     label: String,
     enabled: Boolean,
@@ -712,35 +780,38 @@ private fun GameControlButton(
     trailingContent: (@Composable () -> Unit)? = null
 ) {
     val disabledColor = Color(0xFFF1F1F1)
+    val cornerRadius = if (isTablet) 20.dp else 16.dp
+    val spacing = if (isTablet) 10.dp else 6.dp
+
     Surface(
         modifier = modifier
             .fillMaxWidth()
-            .height(50.dp)
-            .clip(RoundedCornerShape(16.dp))
+            .height(height)
+            .clip(RoundedCornerShape(cornerRadius))
             .clickable(enabled = enabled, onClick = onClick),
-        shape = RoundedCornerShape(16.dp),
+        shape = RoundedCornerShape(cornerRadius),
         color = if (enabled) enabledColor else disabledColor,
         border = BorderStroke(
-            width = 2.dp,
+            width = if (isTablet) 2.5.dp else 2.dp,
             color = if (enabled) enabledBorderColor else Color(0xFFE0E0E0)
         ),
         shadowElevation = if (enabled) 3.dp else 0.dp
     ) {
         Row(
-            modifier = Modifier.fillMaxSize().padding(horizontal = 8.dp),
+            modifier = Modifier.fillMaxSize().padding(horizontal = if (isTablet) 12.dp else 8.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.Center
         ) {
-            Text(emoji, fontSize = 18.sp, color = enabledTextColor)
-            Spacer(modifier = Modifier.width(6.dp))
+            Text(emoji, fontSize = emojiSize, color = enabledTextColor)
+            Spacer(modifier = Modifier.width(spacing))
             Text(
                 text = label,
-                fontSize = 14.sp,
+                fontSize = labelSize,
                 fontWeight = FontWeight.Bold,
                 color = if (enabled) enabledTextColor else Color(0xFF9E9E9E)
             )
             if (trailingContent != null) {
-                Spacer(modifier = Modifier.width(6.dp))
+                Spacer(modifier = Modifier.width(spacing))
                 trailingContent()
             }
         }
@@ -1048,7 +1119,8 @@ fun NumberPickerOverlay(
     onDelete         : () -> Unit,
     onToggleCheck    : () -> Unit,
     onToggleQuestion : () -> Unit,
-    onDismiss        : () -> Unit
+    onDismiss        : () -> Unit,
+    isTablet         : Boolean = false
 ) {
     Box(
         modifier          = Modifier
@@ -1057,22 +1129,27 @@ fun NumberPickerOverlay(
             .clickable(onClick = onDismiss),
         contentAlignment  = Alignment.Center
     ) {
+        val cardPadding = if (isTablet) 32.dp else 20.dp
+        val cardRadius = if (isTablet) 32.dp else 24.dp
+        val itemSpacing = if (isTablet) 16.dp else 10.dp
+        val titleFontSize = if (isTablet) 24.sp else 16.sp
+
         Card(
             modifier  = Modifier
-                .padding(horizontal = 24.dp)
+                .padding(horizontal = if (isTablet) 36.dp else 24.dp)
                 .clickable { /* consume */ },
-            shape     = RoundedCornerShape(24.dp),
+            shape     = RoundedCornerShape(cardRadius),
             colors    = CardDefaults.cardColors(containerColor = Color.White),
-            elevation = CardDefaults.cardElevation(10.dp)
+            elevation = CardDefaults.cardElevation(if (isTablet) 14.dp else 10.dp)
         ) {
             Column(
-                modifier              = Modifier.padding(20.dp),
+                modifier              = Modifier.padding(cardPadding),
                 horizontalAlignment   = Alignment.CenterHorizontally,
-                verticalArrangement   = Arrangement.spacedBy(10.dp)
+                verticalArrangement   = Arrangement.spacedBy(itemSpacing)
             ) {
                 Text(
                     text       = stringResource(if (isGuided) R.string.select_valid_number else R.string.select_number),
-                    fontSize   = 16.sp,
+                    fontSize   = titleFontSize,
                     color      = if (isGuided) Color(0xFF388E3C) else Color(0xFF78909C),
                     fontWeight = FontWeight.SemiBold
                 )
@@ -1083,11 +1160,15 @@ fun NumberPickerOverlay(
                     else -> 3 // 3행에 3개씩 키패드 형태 (1 2 3 / 4 5 6 / 7 8 9)로 배치하여 찌그러짐 방지
                 }
                 val chunks = (1..gridSize).chunked(perRow)
-                val buttonSize = if (gridSize == 9) 56.dp else 60.dp
+                val buttonSize = if (isTablet) {
+                    if (gridSize == 9) 82.dp else 90.dp
+                } else {
+                    if (gridSize == 9) 56.dp else 60.dp
+                }
 
                 chunks.forEach { row ->
                     Row(
-                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                        horizontalArrangement = Arrangement.spacedBy(itemSpacing),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         row.forEach { num ->
@@ -1097,6 +1178,7 @@ fun NumberPickerOverlay(
                                 available  = isAvailable,
                                 isGuided   = isGuided,
                                 buttonSize = buttonSize,
+                                isTablet   = isTablet,
                                 onClick    = { if (isAvailable) onNumberSelected(num) }
                             )
                         }
@@ -1104,15 +1186,24 @@ fun NumberPickerOverlay(
                 }
 
                 Row(
-                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    horizontalArrangement = Arrangement.spacedBy(itemSpacing),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
+                    val deleteFontSize = if (isTablet) {
+                        if (gridSize == 9) 34.sp else 38.sp
+                    } else {
+                        if (gridSize == 9) 24.sp else 26.sp
+                    }
+                    val markerFontSize = if (isTablet) 38.sp else 28.sp
+
                     MarkerActionButton(
                         text = "✓",
                         description = stringResource(R.string.toggle_check),
                         active = isChecked,
                         activeColor = Color(0xFF2E7D32),
                         buttonSize = buttonSize,
+                        fontSize = markerFontSize,
+                        isTablet = isTablet,
                         onClick = onToggleCheck
                     )
                     MarkerActionButton(
@@ -1122,7 +1213,8 @@ fun NumberPickerOverlay(
                         activeColor = Color(0xFFC62828),
                         backgroundColor = Color(0xFFFFEBEE),
                         buttonSize = buttonSize,
-                        fontSize = if (gridSize == 9) 24.sp else 26.sp,
+                        fontSize = deleteFontSize,
+                        isTablet = isTablet,
                         onClick = onDelete
                     )
                     MarkerActionButton(
@@ -1131,6 +1223,8 @@ fun NumberPickerOverlay(
                         active = hasQuestion,
                         activeColor = Color(0xFFEF6C00),
                         buttonSize = buttonSize,
+                        fontSize = markerFontSize,
+                        isTablet = isTablet,
                         onClick = onToggleQuestion
                     )
                 }
@@ -1149,9 +1243,15 @@ private fun MarkerActionButton(
     backgroundColor: Color = activeColor.copy(alpha = 0.12f),
     fontSize: androidx.compose.ui.unit.TextUnit = 28.sp,
     enabled: Boolean = true,
+    isTablet: Boolean = false,
     onClick: () -> Unit
 ) {
     val buttonColor = if (enabled) activeColor else Color(0xFF9E9E9E)
+    val borderWidth = if (active && enabled) {
+        if (isTablet) 2.5.dp else 2.dp
+    } else {
+        if (isTablet) 1.5.dp else 1.dp
+    }
     Box(
         modifier = Modifier
             .size(buttonSize)
@@ -1164,7 +1264,7 @@ private fun MarkerActionButton(
                 }
             )
             .border(
-                width = if (active && enabled) 2.dp else 1.dp,
+                width = borderWidth,
                 color = if (enabled) {
                     if (active) activeColor else activeColor.copy(alpha = 0.35f)
                 } else {
@@ -1180,7 +1280,8 @@ private fun MarkerActionButton(
             text = text,
             color = buttonColor,
             fontSize = fontSize,
-            fontWeight = FontWeight.Bold
+            fontWeight = FontWeight.Bold,
+            textAlign = TextAlign.Center
         )
     }
 }
@@ -1191,6 +1292,7 @@ private fun NumberButton(
     available  : Boolean,
     isGuided   : Boolean,
     buttonSize : androidx.compose.ui.unit.Dp = 60.dp,
+    isTablet   : Boolean = false,
     onClick    : () -> Unit
 ) {
     val bgColor = when {
@@ -1211,6 +1313,18 @@ private fun NumberButton(
         else      -> Color(0xFFBDBDBD)
     }
 
+    val fontSize = if (isTablet) {
+        if (buttonSize < 85.dp) 36.sp else 40.sp
+    } else {
+        if (buttonSize < 60.dp) 24.sp else 26.sp
+    }
+
+    val borderWidth = if (available) {
+        if (isTablet) 2.5.dp else 2.dp
+    } else {
+        if (isTablet) 1.5.dp else 1.dp
+    }
+
     Box(
         modifier = Modifier
             .size(buttonSize)
@@ -1218,7 +1332,7 @@ private fun NumberButton(
             .clip(CircleShape)
             .background(bgColor)
             .border(
-                width = if (available) 2.dp else 1.dp,
+                width = borderWidth,
                 color = borderColor,
                 shape = CircleShape
             )
@@ -1227,9 +1341,21 @@ private fun NumberButton(
     ) {
         Text(
             text       = "$number",
-            fontSize   = if (buttonSize < 60.dp) 24.sp else 26.sp,
+            fontSize   = fontSize,
             fontWeight = FontWeight.Bold,
-            color      = textColor
+            color      = textColor,
+            textAlign  = TextAlign.Center,
+            style      = LocalTextStyle.current.copy(
+                platformStyle = PlatformTextStyle(
+                    includeFontPadding = false
+                ),
+                lineHeight = fontSize,
+                lineHeightStyle = LineHeightStyle(
+                    alignment = LineHeightStyle.Alignment.Center,
+                    trim = LineHeightStyle.Trim.Both
+                )
+            ),
+            modifier   = Modifier.offset(y = if (isTablet) (-1.5).dp else (-1).dp)
         )
     }
 }
