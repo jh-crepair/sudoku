@@ -10,10 +10,10 @@ base {
 }
 
 android {
-  namespace = "com.kidssudoku.puzzle"
+  namespace = "com.jh.app.cherry.puzzle.sudoku"
   compileSdk = 37
   defaultConfig {
-    applicationId = "com.jh.cherry.puzzle.ssudoku"
+    applicationId = "com.jh.app.cherry.puzzle.sudoku"
     minSdk = 26
     targetSdk = 37
     versionCode = 1

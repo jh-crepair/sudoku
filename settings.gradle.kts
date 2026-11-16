@@ -30,6 +30,6 @@ plugins {
   id("org.gradle.toolchains.foojay-resolver-convention") version "1.0.0"
 }
 
-rootProject.name = "숫자 퍼즐 - 어린이 스도쿠"
+rootProject.name = "숫자 퍼즐 - 체리의 스도쿠"
 
 include(":app")

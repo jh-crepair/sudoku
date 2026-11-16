@@ -1,0 +1,183 @@
+package com.jh.app.cherry.puzzle.sudoku.ui.clear
+
+import androidx.compose.animation.*
+import androidx.compose.animation.core.*
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.scale
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import com.jh.app.cherry.puzzle.sudoku.R
+import com.jh.app.cherry.puzzle.sudoku.ui.theme.*
+import kotlinx.coroutines.delay
+
+@Composable
+fun ClearScreen(
+    stars          : Int,
+    elapsedSeconds : Int,
+    hasNextPuzzle  : Boolean = true,
+    onReplay       : () -> Unit,
+    onNextPuzzle   : () -> Unit,
+    onBackToList   : () -> Unit
+) {
+    val minutes  = elapsedSeconds / 60
+    val seconds  = elapsedSeconds % 60
+    val timeStr  = "%02d:%02d".format(minutes, seconds)
+
+    // Bounce animation for the emoji
+    var visible by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) { delay(100); visible = true }
+
+    val scale by animateFloatAsState(
+        targetValue    = if (visible) 1f else 0.3f,
+        animationSpec  = spring(dampingRatio = Spring.DampingRatioMediumBouncy),
+        label          = "emoji_scale"
+    )
+
+    Box(
+        modifier          = Modifier
+            .fillMaxSize()
+            .background(CreamBackground),
+        contentAlignment  = Alignment.Center
+    ) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            modifier            = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 24.dp)
+        ) {
+            // Celebration emoji
+            Text(
+                text     = "🎉",
+                fontSize = 80.sp,
+                modifier = Modifier.scale(scale)
+            )
+            Spacer(modifier = Modifier.height(10.dp))
+            Text(
+                text       = stringResource(R.string.puzzle_complete),
+                fontSize   = 34.sp,
+                fontWeight = FontWeight.ExtraBold,
+                color      = Color(0xFF2E7D32)
+            )
+            Spacer(modifier = Modifier.height(20.dp))
+
+            // Star rating
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment     = Alignment.CenterVertically
+            ) {
+                for (i in 1..3) {
+                    val starVisible = remember { mutableStateOf(false) }
+                    LaunchedEffect(visible) {
+                        if (visible) {
+                            delay((i * 200).toLong())
+                            starVisible.value = true
+                        }
+                    }
+                    val starScale by animateFloatAsState(
+                        targetValue   = if (starVisible.value) 1f else 0f,
+                        animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy),
+                        label         = "star_$i"
+                    )
+                    Text(
+                        text       = if (i <= stars) "★" else "☆",
+                        fontSize   = 52.sp,
+                        color      = if (i <= stars) StarColor else Color(0xFFCFD8DC),
+                        modifier   = Modifier.scale(starScale)
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(24.dp))
+
+            // Time card
+            Card(
+                shape     = RoundedCornerShape(20.dp),
+                colors    = CardDefaults.cardColors(containerColor = Color.White),
+                elevation = CardDefaults.cardElevation(3.dp)
+            ) {
+                Column(
+                    modifier            = Modifier.padding(horizontal = 40.dp, vertical = 18.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Text(
+                        text     = stringResource(R.string.time_taken),
+                        fontSize = 15.sp,
+                        color    = Color(0xFF78909C)
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text       = timeStr,
+                        fontSize   = 32.sp,
+                        fontWeight = FontWeight.Bold,
+                        color      = Color(0xFF263238)
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(32.dp))
+
+            // Buttons: "다시하기" is on the LEFT of "다음판 진행하기"
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                OutlinedButton(
+                    onClick  = onReplay,
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(58.dp),
+                    shape    = RoundedCornerShape(16.dp),
+                    colors   = ButtonDefaults.outlinedButtonColors(
+                        contentColor = Color(0xFF37474F)
+                    )
+                ) {
+                    Text(
+                        text       = stringResource(R.string.retry),
+                        fontSize   = 17.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+
+                Button(
+                    onClick  = onNextPuzzle,
+                    enabled  = hasNextPuzzle,
+                    modifier = Modifier
+                        .weight(1.25f)
+                        .height(58.dp),
+                    shape    = RoundedCornerShape(16.dp)
+                ) {
+                    Text(
+                        text       = stringResource(R.string.next_puzzle),
+                        fontSize   = 17.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            OutlinedButton(
+                onClick  = onBackToList,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(54.dp),
+                shape    = RoundedCornerShape(16.dp)
+            ) {
+                Text(
+                    text     = stringResource(R.string.back_to_list),
+                    fontSize = 17.sp,
+                    color    = Color(0xFF546E7A)
+                )
+            }
+        }
+    }
+}
