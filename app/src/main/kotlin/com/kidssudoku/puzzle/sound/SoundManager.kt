@@ -61,6 +61,7 @@ class SoundManager(private val context: Context) {
         loadSound(SoundEffect.NUMBER_INPUT, "sound_pop")
         loadSound(SoundEffect.UNLOCK,       "sound_unlock")
         loadSound(SoundEffect.BUTTON_CLICK, "sound_tap")
+        loadSound(SoundEffect.PUZZLE_CLEAR, "sound_clear")
 
         // Pre-initialize lazy PCM buffers in background to avoid any first-play lag
         soundExecutor.execute {
@@ -89,6 +90,11 @@ class SoundManager(private val context: Context) {
             }
 
             SoundEffect.PUZZLE_CLEAR -> {
+                val soundId = soundIds[effect]
+                if (soundId != null && soundId != 0) {
+                    val streamId = soundPool.play(soundId, 1.0f, 1.0f, 1, 0, 1f)
+                    if (streamId != 0) return
+                }
                 playPcm(fireworksPcm)
                 return
             }
