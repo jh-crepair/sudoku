@@ -6,8 +6,10 @@ import androidx.lifecycle.viewModelScope
 import com.jh.app.cherry.puzzle.sudoku.data.model.Progress
 import com.jh.app.cherry.puzzle.sudoku.data.model.Puzzle
 import com.jh.app.cherry.puzzle.sudoku.data.repository.PuzzleRepository
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.*
 
+@OptIn(ExperimentalCoroutinesApi::class)
 class PuzzleListViewModel(
     private val repository: PuzzleRepository
 ) : ViewModel() {
