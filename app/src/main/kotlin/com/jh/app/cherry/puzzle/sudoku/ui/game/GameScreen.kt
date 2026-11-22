@@ -1022,7 +1022,7 @@ private fun CellMarker(
         modifier = modifier
             .padding(2.dp)
             .size(14.dp)
-            .background(Color.White.copy(alpha = 0.9f), CircleShape),
+            .background(Color.Transparent),
         contentAlignment = Alignment.Center
     ) {
         Text(
