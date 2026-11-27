@@ -35,6 +35,22 @@ internal fun toggleCellMarker(
     return true
 }
 
+internal fun clearNonHintUserInput(
+    grid: MutableList<MutableList<Int>>,
+    fixedCells: Set<Pair<Int, Int>>,
+    hintCells: Set<Pair<Int, Int>>
+) {
+    val size = grid.size
+    for (r in 0 until size) {
+        for (c in 0 until size) {
+            val cell = r to c
+            if (cell !in fixedCells && cell !in hintCells) {
+                grid[r][c] = 0
+            }
+        }
+    }
+}
+
 data class GameUiState(
     val grid       : List<List<Int>>         = emptyList(),
     val gridSize   : Int                     = 9,
@@ -120,6 +136,7 @@ class GameViewModel(
     private var currentGrid   : MutableList<MutableList<Int>>  = mutableListOf()
     private val checkCells    = mutableSetOf<Pair<Int, Int>>()
     private val questionCells = mutableSetOf<Pair<Int, Int>>()
+    private val hintCells     = mutableSetOf<Pair<Int, Int>>()
     private val progressMutex = Mutex()
     private var puzzleId      : Int                            = -1
     private var gridSize      : Int                            = 9
@@ -146,6 +163,7 @@ class GameViewModel(
         _conflictTrigger.value          = 0L
         checkCells.clear()
         questionCells.clear()
+        hintCells.clear()
         _uiState.value = GameUiState()
 
         viewModelScope.launch {
@@ -193,6 +211,7 @@ class GameViewModel(
                             val savedGrid = stateObject.getJSONArray("grid")
                             restoreCellMarkers(stateObject, "checks", checkCells, fixedCells)
                             restoreCellMarkers(stateObject, "questions", questionCells, fixedCells)
+                            restoreCellMarkers(stateObject, "hints", hintCells, fixedCells)
                             savedGrid
                         } else {
                             JSONArray(savedState)
@@ -208,6 +227,7 @@ class GameViewModel(
                         questionCells.removeAll {
                             currentGrid[it.first][it.second] == 0 || it in checkCells
                         }
+                        hintCells.removeAll { currentGrid[it.first][it.second] == 0 }
                     }
                 }
             } else {
@@ -221,6 +241,7 @@ class GameViewModel(
                 difficulty = puzzle.difficulty,
                 puzzleNumber = puzzle.orderIndex,
                 fixedCells = fixedCells,
+                hintCells  = hintCells.toSet(),
                 solution   = solution
             )
 
@@ -261,13 +282,14 @@ class GameViewModel(
         _conflictingSourceCells.value = emptySet()
         checkCells.clear()
         questionCells.clear()
+        hintCells.clear()
         val fixed = _uiState.value.fixedCells
         for (row in 0 until gridSize) {
             for (col in 0 until gridSize) {
                 if (row to col !in fixed) currentGrid[row][col] = 0
             }
         }
-        refreshState(extraHintCells = emptySet())
+        refreshState()
         isResettingFailedGame = true
         viewModelScope.launch {
             progressMutex.withLock {
@@ -300,6 +322,7 @@ class GameViewModel(
         _conflictingSourceCells.value = emptySet()
         checkCells.clear()
         questionCells.clear()
+        hintCells.clear()
         _selectedCell.value = null
         _showNumberPicker.value = false
 
@@ -315,15 +338,9 @@ class GameViewModel(
     fun clearAllUserInput() {
         if (_isGameOver.value || _isCleared.value || isAbandoning) return
         val fixed = _uiState.value.fixedCells
-        for (r in 0 until gridSize) {
-            for (c in 0 until gridSize) {
-                if (r to c !in fixed) {
-                    currentGrid[r][c] = 0
-                }
-            }
-        }
-        checkCells.clear()
-        questionCells.clear()
+        clearNonHintUserInput(currentGrid, fixed, hintCells)
+        checkCells.removeAll { currentGrid[it.first][it.second] == 0 || it in hintCells }
+        questionCells.removeAll { currentGrid[it.first][it.second] == 0 || it in hintCells }
         _conflictingSourceCells.value = emptySet()
         _selectedCell.value = null
         _showNumberPicker.value = false
@@ -342,6 +359,7 @@ class GameViewModel(
         _isPaused.value = false
         checkCells.clear()
         questionCells.clear()
+        hintCells.clear()
         _conflictingSourceCells.value = emptySet()
         _selectedCell.value = null
         _showNumberPicker.value = false
@@ -374,7 +392,7 @@ class GameViewModel(
     fun onCellClick(row: Int, col: Int) {
         if (_isGameOver.value || _isCleared.value || _isPaused.value || isAbandoning) return
         val state = _uiState.value
-        if (row to col in state.fixedCells) {
+        if (row to col in state.fixedCells || row to col in hintCells) {
             _selectedCell.value = null
             _showNumberPicker.value = false
             return
@@ -419,7 +437,8 @@ class GameViewModel(
             !_isPaused.value &&
             !isAbandoning &&
             row to col == _selectedCell.value &&
-            row to col !in _uiState.value.fixedCells
+            row to col !in _uiState.value.fixedCells &&
+            row to col !in hintCells
     }
 
     private fun restoreCellMarkers(
@@ -506,7 +525,7 @@ class GameViewModel(
     fun inputNumber(row: Int, col: Int, num: Int) {
         if (_isGameOver.value || _isCleared.value || isAbandoning) return
         val state = _uiState.value
-        if (row to col in state.fixedCells) return
+        if (row to col in state.fixedCells || row to col in hintCells) return
 
         // Check conflicts with currently visible numbers on board
         val conflicts = findConflictingCells(row, col, num)
@@ -545,7 +564,7 @@ class GameViewModel(
     fun deleteNumber(row: Int, col: Int) {
         if (_isGameOver.value || _isCleared.value || isAbandoning) return
         val state = _uiState.value
-        if (row to col in state.fixedCells) return
+        if (row to col in state.fixedCells || row to col in hintCells) return
         soundManager.play(SoundEffect.BUTTON_CLICK)
         currentGrid[row][col] = 0
         checkCells.remove(row to col)
@@ -566,7 +585,7 @@ class GameViewModel(
         val empties  = mutableListOf<Pair<Int, Int>>()
         for (r in 0 until gridSize) {
             for (c in 0 until gridSize) {
-                if (currentGrid[r][c] == 0 && r to c !in state.fixedCells) empties.add(r to c)
+                if (currentGrid[r][c] == 0 && r to c !in state.fixedCells && r to c !in hintCells) empties.add(r to c)
             }
         }
         if (empties.isEmpty()) return
@@ -575,11 +594,13 @@ class GameViewModel(
         val (hr, hc)  = empties.random()
         val solutionVal = state.solution[hr * gridSize + hc]
         currentGrid[hr][hc] = solutionVal
+        hintCells.add(hr to hc)
+        checkCells.remove(hr to hc)
+        questionCells.remove(hr to hc)
         _hintsRemaining.value--
         _conflictingSourceCells.value = emptySet()
 
-        val newHints = state.hintCells + (hr to hc)
-        refreshState(extraHintCells = newHints)
+        refreshState()
 
         if (isSolved()) {
             soundManager.play(SoundEffect.PUZZLE_CLEAR)
@@ -611,7 +632,7 @@ class GameViewModel(
         _uiState.value = state.copy(
             grid       = currentGrid.map { it.toList() },
             errorCells = errors,
-            hintCells  = extraHintCells ?: state.hintCells,
+            hintCells  = extraHintCells ?: hintCells.toSet(),
             checkCells = checkCells.toSet(),
             questionCells = questionCells.toSet()
         )
@@ -706,6 +727,7 @@ class GameViewModel(
                 val stateObject = JSONObject().put("grid", jsonArray)
                 stateObject.put("checks", markerIndices(checkCells))
                 stateObject.put("questions", markerIndices(questionCells))
+                stateObject.put("hints", markerIndices(hintCells))
                 val maxH = getMaxHints()
                 val existing = repository.getProgress(puzzleId).first()
                 if (isAbandoning || isResettingFailedGame || _isGameOver.value) return@withLock
